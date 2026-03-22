@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  valeska-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: valeska_central_api
+    restart: unless-stopped
+    ports:
+      - '${PORT:-3001}:${PORT:-3001}'
+    env_file:
+      - .env
+    networks:
+      - valeska_shared_net
+
+networks:
+  valeska_shared_net:
+    external: true
