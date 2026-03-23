@@ -2,7 +2,8 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, Dele
 
 @Entity('catalogo_tipos_tramite')
 export class CatalogoTipoTramite {
-    @PrimaryColumn('uuid') id: string;
+    @PrimaryColumn({ type: 'varchar', length: 50 }) id: string;
+
     @Column() nombre: string;
     @Column({ default: true }) activo: boolean;
 
@@ -14,7 +15,8 @@ export class CatalogoTipoTramite {
 
 @Entity('catalogo_situaciones')
 export class CatalogoSituacion {
-    @PrimaryColumn('uuid') id: string;
+    @PrimaryColumn({ type: 'varchar', length: 50 }) id: string;
+
     @Column() nombre: string;
     @Column({ name: 'color_hex', nullable: true, default: '#CCCCCC' }) colorHex: string;
     @Column({ default: true }) activo: boolean;

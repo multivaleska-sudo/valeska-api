@@ -51,7 +51,7 @@ export class EmpresaGestora {
 
 @Entity('plantillas_documentos')
 export class PlantillaDocumento {
-    @PrimaryColumn('uuid') id: string;
+    @PrimaryColumn({ type: 'varchar', length: 50 }) id: string;
     @Column({ name: 'nombre_documento', unique: true }) nombreDocumento: string;
     @Column({ name: 'contenido_html', type: 'text' }) contenidoHtml: string;
     @Column({ name: 'orientacion_papel', default: 'PORTRAIT' }) orientacionPapel: string;
