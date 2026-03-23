@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
 import { AuthModule } from './auth/auth.module';
-import { ResetCode } from './auth/entities/reset-code.entity';
 import { SyncModule } from './sync/sync.module';
-import { Sucursal } from './sync/entities/sucursal.entity';
-import { Dispositivo } from './sync/entities/dispositivo.entity';
-import { Usuario } from './sync/entities/usuario.entity';
+import { TramitesModule } from './tramites/tramites.module'; // <-- Importamos el nuevo módulo
 
 @Module({
   imports: [
@@ -19,11 +17,14 @@ import { Usuario } from './sync/entities/usuario.entity';
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: [ResetCode, Sucursal, Dispositivo, Usuario],
+
+      autoLoadEntities: true,
       synchronize: true,
     }),
+
     AuthModule,
     SyncModule,
+    TramitesModule,
   ],
 })
 export class AppModule { }
