@@ -41,7 +41,6 @@ export class EmpresaGestora {
     @Column({ unique: true }) ruc: string;
     @Column({ name: 'razon_social' }) razonSocial: string;
     @Column({ nullable: true }) direccion: string;
-    @Column({ nullable: true, type: 'text' }) representantes: string;
 
     @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
@@ -56,6 +55,23 @@ export class PlantillaDocumento {
     @Column({ name: 'contenido_html', type: 'text' }) contenidoHtml: string;
     @Column({ name: 'orientacion_papel', default: 'PORTRAIT' }) orientacionPapel: string;
     @Column({ default: true }) activo: boolean;
+
+    @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
+    @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt: Date;
+    @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus: string;
+}
+
+@Entity('presentantes')
+export class Presentante {
+    @PrimaryColumn('uuid') id: string;
+    @Column({ name: 'partida_registral', nullable: true }) partidaRegistral: string;
+    @Column({ name: 'oficina_registral', nullable: true }) oficinaRegistral: string;
+    @Column({ nullable: true }) domicilio: string;
+    @Column({ unique: true }) dni: string;
+    @Column({ name: 'primer_apellido' }) primerApellido: string;
+    @Column({ name: 'segundo_apellido', nullable: true }) segundoApellido: string;
+    @Column() nombres: string;
 
     @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;

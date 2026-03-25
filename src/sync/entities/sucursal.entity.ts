@@ -22,4 +22,7 @@ export class Sucursal {
 
     @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
     deletedAt: Date;
+
+    @Column({ name: 'sync_status', default: 'LOCAL_INSERT' })
+    syncStatus: string;
 }

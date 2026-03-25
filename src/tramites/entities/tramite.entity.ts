@@ -18,10 +18,20 @@ export class Tramite {
     @Column({ name: 'fecha_presentacion' }) fechaPresentacion: string;
     @Column({ name: 'observaciones_generales', type: 'text', nullable: true }) observacionesGenerales: string;
 
+    @Column({ name: 'tarjeta_en_oficina', default: false }) tarjetaEnOficina: boolean;
+    @Column({ name: 'fecha_tarjeta_en_oficina', nullable: true }) fechaTarjetaEnOficina: string;
+
+    @Column({ name: 'placa_en_oficina', default: false }) placaEnOficina: boolean;
+    @Column({ name: 'fecha_placa_en_oficina', nullable: true }) fechaPlacaEnOficina: string;
+
     @Column({ name: 'entrego_tarjeta', default: false }) entregoTarjeta: boolean;
     @Column({ name: 'fecha_entrega_tarjeta', nullable: true }) fechaEntregaTarjeta: string;
+    @Column({ name: 'metodo_entrega_tarjeta', nullable: true }) metodoEntregaTarjeta: string;
+
     @Column({ name: 'entrego_placa', default: false }) entregoPlaca: boolean;
     @Column({ name: 'fecha_entrega_placa', nullable: true }) fechaEntregaPlaca: string;
+    @Column({ name: 'metodo_entrega_placa', nullable: true }) metodoEntregaPlaca: string;
+
     @Column({ name: 'observacion_placa', type: 'text', nullable: true }) observacionPlaca: string;
 
     @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
@@ -36,14 +46,14 @@ export class TramiteDetalle {
     @Column({ name: 'tramite_id', unique: true }) tramiteId: string;
     @Column({ name: 'empresa_gestora_id', nullable: true }) empresaGestoraId: string;
 
-    @Column({ name: 'presentante_persona', nullable: true }) presentantePersona: string;
-    @Column({ name: 'es_representante', default: false }) esRepresentante: boolean;
+    @Column({ name: 'presentante_id', nullable: true }) presentanteId: string;
 
     @Column({ name: 'tipo_boleta', nullable: true }) tipoBoleta: string;
     @Column({ name: 'numero_boleta', nullable: true }) numeroBoleta: string;
     @Column({ name: 'fecha_boleta', nullable: true }) fechaBoleta: string;
     @Column({ nullable: true }) dua: string;
     @Column({ name: 'num_formato_inmatriculacion', nullable: true }) numFormatoInmatriculacion: string;
+    @Column({ name: 'numero_recibo_tramite', nullable: true }) numeroReciboTramite: string;
 
     @Column({ name: 'clausula_monto', type: 'real', nullable: true }) clausulaMonto: number;
     @Column({ name: 'clausula_forma_pago', nullable: true }) clausulaFormaPago: string;
