@@ -4,39 +4,39 @@ import { Dispositivo } from './dispositivo.entity';
 @Entity('usuarios')
 export class Usuario {
     @PrimaryColumn('uuid')
-    id: string;
+    id!: string;
 
     @Column({ unique: true })
-    username: string;
+    username!: string;
 
     @Column({ name: 'password_hash' })
-    passwordHash: string;
+    passwordHash!: string;
 
     @Column({ default: 'OPERADOR' })
-    rol: string;
+    rol!: string;
 
     @Column({ name: 'nombre_completo' })
-    nombreCompleto: string;
+    nombreCompleto!: string;
 
     @Column({ name: 'esta_activo', default: true })
-    estaActivo: boolean;
+    estaActivo!: boolean;
 
     @Column({ name: 'dispositivo_id', nullable: true })
-    dispositivoId: string;
+    dispositivoId!: string;
 
     @ManyToOne(() => Dispositivo, { nullable: true })
     @JoinColumn({ name: 'dispositivo_id' })
-    dispositivo: Dispositivo;
+    dispositivo!: Dispositivo;
 
     @Column({ name: 'created_at', type: 'timestamp' })
-    createdAt: Date;
+    createdAt!: Date;
 
     @Column({ name: 'updated_at', type: 'timestamp' })
-    updatedAt: Date;
+    updatedAt!: Date;
 
     @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
-    deletedAt: Date;
+    deletedAt!: Date;
 
     @Column({ name: 'sync_status', default: 'LOCAL_INSERT' })
-    syncStatus: string;
+    syncStatus!: string;
 }
