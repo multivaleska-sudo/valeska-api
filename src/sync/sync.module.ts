@@ -9,9 +9,11 @@ import { SeguridadSyncService } from './services/seguridad-sync.service';
 import { CatalogosSyncService } from './services/catalogos-sync.service';
 import { TramitesSyncService } from './services/tramites-sync.service';
 import { MaestrosSyncService } from './services/maestros-sync.service';
+import { SyncConflicto } from './entities/sync-conflict.entity';
+import { ConflictosSyncService } from './services/conflictos-sync.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Sucursal, Dispositivo, Usuario])],
+  imports: [TypeOrmModule.forFeature([Sucursal, Dispositivo, Usuario, SyncConflicto])],
   controllers: [SyncController],
   providers: [
     SyncService,
@@ -19,6 +21,7 @@ import { MaestrosSyncService } from './services/maestros-sync.service';
     CatalogosSyncService,
     MaestrosSyncService,
     TramitesSyncService,
+    ConflictosSyncService
   ],
   exports: [SyncService],
 })

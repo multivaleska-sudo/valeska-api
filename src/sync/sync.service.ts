@@ -1,11 +1,12 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource} from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Usuario } from './entities/usuario.entity';
 import { SeguridadSyncService } from './services/seguridad-sync.service';
 import { CatalogosSyncService } from './services/catalogos-sync.service';
 import { MaestrosSyncService } from './services/maestros-sync.service';
 import { TramitesSyncService } from './services/tramites-sync.service';
+import { ConflictosSyncService } from './services/conflictos-sync.service';
 
 @Injectable()
 export class SyncService {
@@ -18,6 +19,7 @@ export class SyncService {
         private catalogosSync: CatalogosSyncService,
         private maestrosSync: MaestrosSyncService,
         private tramitesSync: TramitesSyncService,
+        private conflictosSync: ConflictosSyncService,
     ) { }
 
     private async validateOperator(userId: string) {
@@ -46,6 +48,7 @@ export class SyncService {
             recordsSynced += await this.catalogosSync.push(manager, payload);
             recordsSynced += await this.maestrosSync.push(manager, payload);
             recordsSynced += await this.tramitesSync.push(manager, payload);
+            recordsSynced += await this.conflictosSync.push(manager, payload);
         });
 
         this.logger.log(`✅ [PUSH COMPLETADO] ${nombrePc} sincronizó exitosamente ${recordsSynced} registros en la nube central.`);
@@ -67,12 +70,14 @@ export class SyncService {
         const dataCatalogos = await this.catalogosSync.pull(syncDate);
         const dataMaestros = await this.maestrosSync.pull(syncDate);
         const dataTramites = await this.tramitesSync.pull(syncDate);
+        const dataConflictos = await this.conflictosSync.pull(syncDate);
 
         const totalDescargados =
             Object.values(dataSeguridad).flat().length +
             Object.values(dataCatalogos).flat().length +
             Object.values(dataMaestros).flat().length +
-            Object.values(dataTramites).flat().length;
+            Object.values(dataTramites).flat().length +
+            Object.values(dataConflictos).flat().length;
 
         this.logger.log(`✅ [PULL COMPLETADO] ${nombrePc} descargó -> ${totalDescargados} registros actualizados.`);
 
@@ -81,6 +86,7 @@ export class SyncService {
             ...dataCatalogos,
             ...dataMaestros,
             ...dataTramites,
+            ...dataConflictos,
             serverTimestamp: new Date().toISOString()
         };
     }
