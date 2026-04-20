@@ -22,11 +22,21 @@ export class SyncService {
         private conflictosSync: ConflictosSyncService,
     ) { }
 
-    private async validateOperator(userId: string) {
+    private async validateOperator(userId: string, payload?: any) {
         const userRequesting = await this.userRepo.findOne({
             where: { id: userId },
             relations: ['dispositivo']
         });
+
+        if (!userRequesting && payload && payload.usuarios) {
+            const userInPayload = payload.usuarios.find((u: any) => u.id === userId);
+            if (userInPayload) {
+                return {
+                    nombrePc: 'PC-NUEVA (Sync Inicial)',
+                    userName: userInPayload.nombreCompleto
+                };
+            }
+        }
 
         if (!userRequesting) throw new UnauthorizedException('USER_NOT_FOUND');
         if (!userRequesting.estaActivo) throw new UnauthorizedException('USER_BLOCKED');
@@ -38,7 +48,7 @@ export class SyncService {
     }
 
     async processPushSync(userId: string, payload: any) {
-        const { nombrePc, userName } = await this.validateOperator(userId);
+        const { nombrePc, userName } = await this.validateOperator(userId, payload);
         this.logger.log(`📥 [PUSH INICIADO] Máquina: ${nombrePc} | Operador: ${userName}`);
 
         let recordsSynced = 0;
