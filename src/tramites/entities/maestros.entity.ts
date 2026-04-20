@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 
 @Entity('clientes')
 export class Cliente {
@@ -65,13 +65,55 @@ export class PlantillaDocumento {
 @Entity('presentantes')
 export class Presentante {
     @PrimaryColumn('uuid') id!: string;
-    @Column({ name: 'partida_registral', nullable: true }) partidaRegistral!: string;
-    @Column({ name: 'oficina_registral', nullable: true }) oficinaRegistral!: string;
-    @Column({ nullable: true }) domicilio!: string;
-    @Column({ unique: true }) dni!: string;
-    @Column({ name: 'primer_apellido' }) primerApellido!: string;
-    @Column({ name: 'segundo_apellido', nullable: true }) segundoApellido!: string;
-    @Column() nombres!: string;
+    @Column({ length: 20, unique: true, nullable: true })
+    dni!: string;
+
+    @Column({ length: 100 })
+    nombres!: string;
+
+    @Column({ name: 'primer_apellido', length: 100 })
+    primerApellido!: string;
+
+    @Column({ name: 'segundo_apellido', length: 100, nullable: true })
+    segundoApellido!: string;
+
+    @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
+    @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
+}
+
+@Entity('representantes_legales')
+export class RepresentanteLegal {
+    @PrimaryColumn('uuid') id!: string;
+
+    @ManyToOne(() => EmpresaGestora)
+    @JoinColumn({ name: 'empresa_gestora_id' })
+    empresaGestora!: EmpresaGestora;
+
+    @Column({ name: 'empresa_gestora_id' })
+    empresaGestoraId!: string;
+
+    @Column({ length: 20, unique: true })
+    dni!: string;
+
+    @Column({ length: 100 })
+    nombres!: string;
+
+    @Column({ name: 'primer_apellido', length: 100 })
+    primerApellido!: string;
+
+    @Column({ name: 'segundo_apellido', length: 100, nullable: true })
+    segundoApellido!: string;
+
+    @Column({ name: 'partida_registral', length: 50, nullable: true })
+    partidaRegistral!: string;
+
+    @Column({ name: 'oficina_registral', length: 100, nullable: true })
+    oficinaRegistral!: string;
+
+    @Column({ type: 'text', nullable: true })
+    domicilio!: string;
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;

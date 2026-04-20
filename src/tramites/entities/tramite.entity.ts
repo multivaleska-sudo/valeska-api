@@ -1,4 +1,5 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, JoinColumn, ManyToOne } from 'typeorm';
+import { RepresentanteLegal } from './maestros.entity';
 
 @Entity('tramites')
 export class Tramite {
@@ -44,9 +45,19 @@ export class Tramite {
 export class TramiteDetalle {
     @PrimaryColumn('uuid') id!: string;
     @Column({ name: 'tramite_id', unique: true }) tramiteId!: string;
-    @Column({ name: 'empresa_gestora_id', nullable: true }) empresaGestoraId!: string;
 
-    @Column({ name: 'presentante_id', nullable: true }) presentanteId!: string;
+    @Column({ name: 'empresa_gestora_id', nullable: true })
+    empresaGestoraId!: string;
+
+    @ManyToOne(() => RepresentanteLegal, { nullable: true })
+    @JoinColumn({ name: 'representante_legal_id' })
+    representanteLegal!: RepresentanteLegal;
+
+    @Column({ name: 'representante_legal_id', nullable: true })
+    representanteLegalId!: string;
+
+    @Column({ name: 'presentante_id', nullable: true })
+    presentanteId!: string;
 
     @Column({ name: 'tipo_boleta', nullable: true }) tipoBoleta!: string;
     @Column({ name: 'numero_boleta', nullable: true }) numeroBoleta!: string;
