@@ -1,6 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager, DataSource, MoreThan } from 'typeorm';
-import { Cliente, Vehiculo, EmpresaGestora, PlantillaDocumento, Presentante } from '../../tramites/entities/maestros.entity';
+import {
+    Cliente,
+    Vehiculo,
+    EmpresaGestora,
+    RepresentanteLegal,
+    Presentante,
+    PlantillaDocumento
+} from '../../tramites/entities/maestros.entity';
+import {
+    MessageTemplate
+} from '../../tramites/entities/plantillas.entity';
 
 @Injectable()
 export class MaestrosSyncService {
@@ -8,6 +18,7 @@ export class MaestrosSyncService {
 
     async push(manager: EntityManager, payload: any): Promise<number> {
         let count = 0;
+
         if (payload.clientes?.length) {
             await manager.upsert(Cliente, payload.clientes, ['id']);
             count += payload.clientes.length;
@@ -20,14 +31,23 @@ export class MaestrosSyncService {
             await manager.upsert(EmpresaGestora, payload.empresasGestoras, ['id']);
             count += payload.empresasGestoras.length;
         }
-        if (payload.plantillasDocumentos?.length) {
-            await manager.upsert(PlantillaDocumento, payload.plantillasDocumentos, ['id']);
-            count += payload.plantillasDocumentos.length;
+        if (payload.representantesLegales?.length) {
+            await manager.upsert(RepresentanteLegal, payload.representantesLegales, ['id']);
+            count += payload.representantesLegales.length;
         }
         if (payload.presentantes?.length) {
             await manager.upsert(Presentante, payload.presentantes, ['id']);
             count += payload.presentantes.length;
         }
+        if (payload.plantillasDocumentos?.length) {
+            await manager.upsert(PlantillaDocumento, payload.plantillasDocumentos, ['id']);
+            count += payload.plantillasDocumentos.length;
+        }
+        if (payload.messageTemplates?.length) {
+            await manager.upsert(MessageTemplate, payload.messageTemplates, ['id']);
+            count += payload.messageTemplates.length;
+        }
+
         return count;
     }
 
@@ -36,8 +56,10 @@ export class MaestrosSyncService {
             clientes: await this.dataSource.getRepository(Cliente).find({ where: { updatedAt: MoreThan(syncDate) } }),
             vehiculos: await this.dataSource.getRepository(Vehiculo).find({ where: { updatedAt: MoreThan(syncDate) } }),
             empresasGestoras: await this.dataSource.getRepository(EmpresaGestora).find({ where: { updatedAt: MoreThan(syncDate) } }),
-            plantillasDocumentos: await this.dataSource.getRepository(PlantillaDocumento).find({ where: { updatedAt: MoreThan(syncDate) } }),
+            representantesLegales: await this.dataSource.getRepository(RepresentanteLegal).find({ where: { updatedAt: MoreThan(syncDate) } }), // NUEVO
             presentantes: await this.dataSource.getRepository(Presentante).find({ where: { updatedAt: MoreThan(syncDate) } }),
+            plantillasDocumentos: await this.dataSource.getRepository(PlantillaDocumento).find({ where: { updatedAt: MoreThan(syncDate) } }),
+            messageTemplates: await this.dataSource.getRepository(MessageTemplate).find({ where: { updatedAt: MoreThan(syncDate) } }), // NUEVO
         };
     }
 }
