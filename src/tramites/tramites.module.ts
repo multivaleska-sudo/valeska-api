@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Cliente, Vehiculo, EmpresaGestora, PlantillaDocumento } from './entities/maestros.entity';
 import { CatalogoTipoTramite, CatalogoSituacion } from './entities/catalogos.entity';
 import { Tramite, TramiteDetalle } from './entities/tramite.entity';
+import { MessageTemplate } from './entities/plantillas.entity';
 
 @Module({
     imports: [
@@ -15,7 +16,8 @@ import { Tramite, TramiteDetalle } from './entities/tramite.entity';
             CatalogoTipoTramite,
             CatalogoSituacion,
             Tramite,
-            TramiteDetalle
+            TramiteDetalle,
+            MessageTemplate
         ])
     ],
     exports: [TypeOrmModule],

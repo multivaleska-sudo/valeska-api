@@ -38,7 +38,7 @@ export class Vehiculo {
 @Entity('empresas_gestoras')
 export class EmpresaGestora {
     @PrimaryColumn('uuid') id!: string;
-    @Column({ unique: true }) ruc!: string;
+    @Column({ unique: true, nullable: true }) ruc!: string;
     @Column({ name: 'razon_social' }) razonSocial!: string;
     @Column({ nullable: true }) direccion!: string;
 
