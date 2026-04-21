@@ -4,7 +4,7 @@ import { RepresentanteLegal } from './maestros.entity';
 @Entity('tramites')
 export class Tramite {
     @PrimaryColumn('uuid') id!: string;
-    @Column({ name: 'codigo_verificacion', unique: true }) codigoVerificacion!: string;
+    @Column({ name: 'codigo_verificacion', unique: true, nullable: true }) codigoVerificacion!: string;
     @Column({ name: 'tramite_anio' }) tramiteAnio!: string;
 
     @Column({ name: 'cliente_id' }) clienteId!: string;

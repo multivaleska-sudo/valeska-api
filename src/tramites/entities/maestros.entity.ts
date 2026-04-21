@@ -4,8 +4,8 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, Dele
 export class Cliente {
     @PrimaryColumn('uuid') id!: string;
     @Column({ name: 'tipo_documento' }) tipoDocumento!: string;
-    @Column({ name: 'numero_documento', unique: true }) numeroDocumento!: string;
-    @Column({ name: 'razon_social_nombres' }) razonSocialNombres!: string;
+    @Column({ name: 'numero_documento', unique: true, nullable: true }) numeroDocumento!: string;
+    @Column({ name: 'razon_social_nombres', nullable: true }) razonSocialNombres!: string;
     @Column({ name: 'estado_civil', nullable: true, default: 'SOLTERO(A)' }) estadoCivil!: string;
     @Column({ nullable: true }) domicilio!: string;
     @Column({ nullable: true }) telefono!: string;
@@ -19,10 +19,10 @@ export class Cliente {
 @Entity('vehiculos')
 export class Vehiculo {
     @PrimaryColumn('uuid') id!: string;
-    @Column({ name: 'chasis_vin', unique: true }) chasisVin!: string;
+    @Column({ name: 'chasis_vin', unique: true, nullable: true }) chasisVin!: string;
     @Column({ nullable: true }) placa!: string;
     @Column({ nullable: true }) motor!: string;
-    @Column() marca!: string;
+    @Column({ nullable: true }) marca!: string;
     @Column({ nullable: true }) modelo!: string;
     @Column({ nullable: true }) color!: string;
     @Column({ nullable: true, default: 'L3 - B' }) categoria!: string;
