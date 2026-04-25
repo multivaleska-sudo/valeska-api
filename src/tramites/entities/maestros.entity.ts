@@ -19,12 +19,14 @@ export class Cliente {
 @Entity('vehiculos')
 export class Vehiculo {
     @PrimaryColumn('uuid') id!: string;
-    @Column({ name: 'chasis_vin', unique: true, nullable: true }) chasisVin!: string;
+
+    @Column({ name: 'chasis_vin', nullable: true }) chasisVin!: string;
     @Column({ nullable: true }) placa!: string;
     @Column({ nullable: true }) motor!: string;
     @Column({ nullable: true }) marca!: string;
     @Column({ nullable: true }) modelo!: string;
     @Column({ nullable: true }) color!: string;
+    @Column({ nullable: true }) carroceria!: string;
     @Column({ nullable: true, default: 'L3 - B' }) categoria!: string;
     @Column({ name: 'anio_fabricacion', nullable: true }) anioFabricacion!: string;
     @Column({ name: 'anio_modelo', nullable: true }) anioModelo!: string;
@@ -38,7 +40,7 @@ export class Vehiculo {
 @Entity('empresas_gestoras')
 export class EmpresaGestora {
     @PrimaryColumn('uuid') id!: string;
-    @Column({ unique: true, nullable: true }) ruc!: string;
+    @Column({ nullable: true }) ruc!: string;
     @Column({ name: 'razon_social' }) razonSocial!: string;
     @Column({ nullable: true }) direccion!: string;
 
@@ -65,17 +67,11 @@ export class PlantillaDocumento {
 @Entity('presentantes')
 export class Presentante {
     @PrimaryColumn('uuid') id!: string;
-    @Column({ length: 20, unique: true, nullable: true })
-    dni!: string;
 
-    @Column({ length: 100 })
-    nombres!: string;
-
-    @Column({ name: 'primer_apellido', length: 100 })
-    primerApellido!: string;
-
-    @Column({ name: 'segundo_apellido', length: 100, nullable: true })
-    segundoApellido!: string;
+    @Column({ nullable: true }) dni!: string;
+    @Column({ nullable: true }) nombres!: string;
+    @Column({ name: 'primer_apellido', nullable: true }) primerApellido!: string;
+    @Column({ name: 'segundo_apellido', nullable: true }) segundoApellido!: string;
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
@@ -87,33 +83,20 @@ export class Presentante {
 export class RepresentanteLegal {
     @PrimaryColumn('uuid') id!: string;
 
+    @Column({ name: 'empresa_gestora_id' })
+    empresaGestoraId!: string;
+
     @ManyToOne(() => EmpresaGestora)
     @JoinColumn({ name: 'empresa_gestora_id' })
     empresaGestora!: EmpresaGestora;
 
-    @Column({ name: 'empresa_gestora_id' })
-    empresaGestoraId!: string;
-
-    @Column({ length: 20, unique: true })
-    dni!: string;
-
-    @Column({ length: 100 })
-    nombres!: string;
-
-    @Column({ name: 'primer_apellido', length: 100 })
-    primerApellido!: string;
-
-    @Column({ name: 'segundo_apellido', length: 100, nullable: true })
-    segundoApellido!: string;
-
-    @Column({ name: 'partida_registral', length: 50, nullable: true })
-    partidaRegistral!: string;
-
-    @Column({ name: 'oficina_registral', length: 100, nullable: true })
-    oficinaRegistral!: string;
-
-    @Column({ type: 'text', nullable: true })
-    domicilio!: string;
+    @Column({ nullable: true }) dni!: string;
+    @Column({ nullable: true }) nombres!: string;
+    @Column({ name: 'primer_apellido', nullable: true }) primerApellido!: string;
+    @Column({ name: 'segundo_apellido', nullable: true }) segundoApellido!: string;
+    @Column({ name: 'partida_registral', nullable: true }) partidaRegistral!: string;
+    @Column({ name: 'oficina_registral', nullable: true }) oficinaRegistral!: string;
+    @Column({ nullable: true }) domicilio!: string;
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
