@@ -11,6 +11,7 @@ import {
 import {
     MessageTemplate
 } from '../../tramites/entities/plantillas.entity';
+import { PerfilGestor } from '../../tramites/entities/perfil-gestor.entity';
 
 @Injectable()
 export class MaestrosSyncService {
@@ -48,6 +49,11 @@ export class MaestrosSyncService {
             count += payload.messageTemplates.length;
         }
 
+        if (payload.perfilesGestor?.length) {
+            await manager.upsert(PerfilGestor, payload.perfilesGestor, ['id']);
+            count += payload.perfilesGestor.length;
+        }
+
         return count;
     }
 
@@ -56,10 +62,11 @@ export class MaestrosSyncService {
             clientes: await this.dataSource.getRepository(Cliente).find({ where: { updatedAt: MoreThan(syncDate) } }),
             vehiculos: await this.dataSource.getRepository(Vehiculo).find({ where: { updatedAt: MoreThan(syncDate) } }),
             empresasGestoras: await this.dataSource.getRepository(EmpresaGestora).find({ where: { updatedAt: MoreThan(syncDate) } }),
-            representantesLegales: await this.dataSource.getRepository(RepresentanteLegal).find({ where: { updatedAt: MoreThan(syncDate) } }), // NUEVO
+            representantesLegales: await this.dataSource.getRepository(RepresentanteLegal).find({ where: { updatedAt: MoreThan(syncDate) } }),
             presentantes: await this.dataSource.getRepository(Presentante).find({ where: { updatedAt: MoreThan(syncDate) } }),
             plantillasDocumentos: await this.dataSource.getRepository(PlantillaDocumento).find({ where: { updatedAt: MoreThan(syncDate) } }),
-            messageTemplates: await this.dataSource.getRepository(MessageTemplate).find({ where: { updatedAt: MoreThan(syncDate) } }), // NUEVO
+            messageTemplates: await this.dataSource.getRepository(MessageTemplate).find({ where: { updatedAt: MoreThan(syncDate) } }),
+            perfilesGestor: await this.dataSource.getRepository(PerfilGestor).find({ where: { updatedAt: MoreThan(syncDate) } }),
         };
     }
 }
