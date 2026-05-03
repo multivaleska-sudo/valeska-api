@@ -5,6 +5,7 @@ import { Cliente, Vehiculo, EmpresaGestora, PlantillaDocumento, RepresentanteLeg
 import { CatalogoTipoTramite, CatalogoSituacion } from './entities/catalogos.entity';
 import { Tramite, TramiteDetalle } from './entities/tramite.entity';
 import { MessageTemplate } from './entities/plantillas.entity';
+import { PerfilGestor } from './entities/perfil-gestor.entity';
 
 @Module({
     imports: [
@@ -19,7 +20,8 @@ import { MessageTemplate } from './entities/plantillas.entity';
             CatalogoSituacion,
             Tramite,
             TramiteDetalle,
-            MessageTemplate
+            MessageTemplate,
+            PerfilGestor
         ])
     ],
     exports: [TypeOrmModule],
