@@ -1,59 +1,39 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager, MoreThanOrEqual } from 'typeorm';
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import { type IConflictosSyncRepository, CONFLICTOS_SYNC_REPOSITORY_TOKEN } from '../domain/ports/conflictos-sync-repository.interface';
 import { SyncConflicto } from '../entities/sync-conflict.entity';
 
+/**
+ * Servicio para procesar el registro y conciliación de colisiones lógicas de sincronización.
+ */
 @Injectable()
 export class ConflictosSyncService {
+    private readonly logger = new Logger(ConflictosSyncService.name);
+
     constructor(
-        @InjectRepository(SyncConflicto)
-        private conflictoRepo: Repository<SyncConflicto>,
+        @Inject(CONFLICTOS_SYNC_REPOSITORY_TOKEN)
+        private readonly conflictosSyncRepo: IConflictosSyncRepository,
     ) { }
 
-    async push(manager: EntityManager, payload: any): Promise<number> {
-        const conflictos = payload.conflictos;
-        if (!conflictos || !Array.isArray(conflictos) || conflictos.length === 0) {
-            return 0;
+    /**
+     * Almacena las colisiones encontradas durante el proceso distributivo en el servidor principal.
+     */
+    async push(tx: any, payload: { conflictos?: Partial<SyncConflicto>[] }): Promise<void> {
+        if (payload.conflictos && payload.conflictos.length > 0) {
+            this.logger.debug(`Registrando ${payload.conflictos.length} colisiones en la base de datos central.`);
+            await this.conflictosSyncRepo.upsertConflictos(tx, payload.conflictos);
         }
-
-        let recordsSynced = 0;
-
-        for (const item of conflictos) {
-            const existing = await manager.findOne(SyncConflicto, {
-                where: { id: item.id }
-            });
-
-            if (!existing || (item.resuelto && !existing.resuelto)) {
-                await manager.save(SyncConflicto, {
-                    id: item.id,
-                    tablaAfectada: item.tablaAfectada,
-                    registroId: item.registroId,
-                    identificadorVisual: item.identificadorVisual,
-                    datosLocales: item.datosLocales,
-                    datosRemotos: item.datosRemotos,
-                    resuelto: Boolean(item.resuelto),
-                    fechaConflicto: new Date(item.fechaConflicto),
-                });
-                recordsSynced++;
-            }
-        }
-
-        return recordsSynced;
     }
 
-    async pull(lastSyncDate: Date) {
-        const conflictos = await this.conflictoRepo.find({
-            where: [
-                { resuelto: false },
-                { fechaConflicto: MoreThanOrEqual(lastSyncDate) }
-            ],
-            order: {
-                fechaConflicto: 'DESC'
-            }
-        });
+    /**
+     * Obtiene de manera paginada los logs de conflictos activos.
+     */
+    async pull(cursorTimestamp: Date, lastId: string, limit: number) {
+        this.logger.debug(`Ejecutando pull de colisiones activas.`);
+
+        const conflictos = await this.conflictosSyncRepo.fetchConflictosCursor(cursorTimestamp, lastId, limit);
 
         return {
-            conflictos
+            conflictos,
         };
     }
 }
