@@ -2,24 +2,27 @@ import { CatalogoTipoTramite, CatalogoSituacion } from '../../../tramites/entiti
 
 export const CATALOGOS_SYNC_REPOSITORY_TOKEN = Symbol('ICatalogosSyncRepository');
 
+/**
+ * Puerto de dominio para aislar la persistencia y lectura de los Catálogos operativos.
+ */
 export interface ICatalogosSyncRepository {
     /**
-     * Realiza un UPSERT por lotes de los tipos de trámite.
+     * Realiza un UPSERT por lotes de los Tipos de Trámite.
      */
-    upsertTiposTramite(manager: any, tipos: Partial<CatalogoTipoTramite>[]): Promise<void>;
+    upsertTiposTramite(tx: any, tipos: Partial<CatalogoTipoTramite>[]): Promise<void>;
 
     /**
-     * Realiza un UPSERT por lotes de las situaciones.
+     * Realiza un UPSERT por lotes de las Situaciones de Trámite.
      */
-    upsertSituaciones(manager: any, situaciones: Partial<CatalogoSituacion>[]): Promise<void>;
+    upsertSituaciones(tx: any, situaciones: Partial<CatalogoSituacion>[]): Promise<void>;
 
     /**
-     * Obtiene tipos de trámite modificados a partir de un cursor de sincronización.
+     * Recupera tipos de trámite de forma paginada para sincronización pull.
      */
     fetchTiposTramiteCursor(cursorDate: Date, lastId: string, limit: number): Promise<CatalogoTipoTramite[]>;
 
     /**
-     * Obtiene situaciones modificadas a partir de un cursor de sincronización.
+     * Recupera situaciones de trámite de forma paginada para sincronización pull.
      */
     fetchSituacionesCursor(cursorDate: Date, lastId: string, limit: number): Promise<CatalogoSituacion[]>;
 }

@@ -2,25 +2,32 @@ import { Tramite, TramiteDetalle } from '../../../tramites/entities/tramite.enti
 
 export const TRAMITES_SYNC_REPOSITORY_TOKEN = Symbol('ITramitesSyncRepository');
 
+/**
+ * Puerto de dominio para el aislamiento de persistencia de Trámites y sus Detalles.
+ */
 export interface ITramitesSyncRepository {
     /**
-     * Realiza un UPSERT por lotes de los trámites mitigando bloqueos transaccionales largos.
+     * Realiza un UPSERT atómico por lotes de los trámites utilizando el contexto de transacción provisto.
+     * @param tx El gestor transaccional de la base de datos (EntityManager o equivalente)
+     * @param tramites Lote de entidades de tipo Trámite
      */
-    upsertTramites(manager: any, tramites: Partial<Tramite>[]): Promise<void>;
+    upsertTramites(tx: any, tramites: Partial<Tramite>[]): Promise<void>;
 
     /**
-     * Realiza un UPSERT por lotes de los detalles de trámites.
+     * Realiza un UPSERT atómico por lotes de los detalles de trámites.
+     * @param tx El gestor transaccional de la base de datos
+     * @param detalles Lote de entidades de tipo TramiteDetalle
      */
-    upsertTramiteDetalles(manager: any, detalles: Partial<TramiteDetalle>[]): Promise<void>;
+    upsertTramiteDetalles(tx: any, detalles: Partial<TramiteDetalle>[]): Promise<void>;
 
     /**
-     * Obtiene trámites modificados a partir de un cursor compuesto (updatedAt, lastId)
-     * para garantizar consumo de memoria plano O(1).
+     * Obtiene una página de Trámites modificados utilizando cursor compuesto.
+     * Evita fugas de memoria al limitar la transferencia de datos.
      */
     fetchTramitesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Tramite[]>;
 
     /**
-     * Obtiene detalles de trámites modificados a partir de un cursor compuesto.
+     * Obtiene una página de Detalles de Trámite modificados utilizando cursor compuesto.
      */
     fetchTramiteDetallesCursor(cursorDate: Date, lastId: string, limit: number): Promise<TramiteDetalle[]>;
 }
