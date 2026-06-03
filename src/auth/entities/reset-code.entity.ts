@@ -3,17 +3,17 @@ import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeor
 @Entity('password_reset_codes')
 export class ResetCode {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  email: string;
+  email!: string;
 
   @Column()
-  code: string;
+  code!: string;
 
   @Column()
-  expiresAt: Date;
+  expiresAt!: Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }

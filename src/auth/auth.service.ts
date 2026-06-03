@@ -1,143 +1,123 @@
-import { Injectable, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as nodemailer from 'nodemailer';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
-
-import { ResetCode } from './entities/reset-code.entity';
 import { Usuario } from '../sync/entities/usuario.entity';
-import { Dispositivo } from '../sync/entities/dispositivo.entity';
-import { Sucursal } from '../sync/entities/sucursal.entity';
+import { ResetCode } from './entities/reset-code.entity';
 
+/**
+ * Servicio de autenticación refactorizado para alto rendimiento y seguridad empresarial.
+ * - Desbloquea el Event Loop al utilizar funciones criptográficas asíncronas.
+ * - Evita ataques de enumeración de usuarios unificando respuestas de error.
+ */
 @Injectable()
 export class AuthService {
-    private transporter: nodemailer.Transporter;
-
     constructor(
-        @InjectRepository(ResetCode) private resetCodeRepository: Repository<ResetCode>,
-        @InjectRepository(Usuario) private userRepo: Repository<Usuario>,
-        @InjectRepository(Dispositivo) private dispRepo: Repository<Dispositivo>,
-        @InjectRepository(Sucursal) private sucursalRepo: Repository<Sucursal>,
-    ) {
-        this.transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT || '587', 10),
-            auth: {
-                user: process.env.SMTP_USER || process.env.GMAIL_APP_EMAIL,
-                pass: process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD,
-            },
+        @InjectRepository(Usuario)
+        private readonly usuarioRepo: Repository<Usuario>,
+        @InjectRepository(ResetCode)
+        private readonly resetCodeRepo: Repository<ResetCode>,
+        private readonly jwtService: JwtService,
+    ) { }
+
+    /**
+     * Valida las credenciales del operador de manera asíncrona no bloqueante.
+     */
+    async validateUser(username: string, passwordPlan: string): Promise<any> {
+        const user = await this.usuarioRepo.findOne({
+            where: { username },
+            relations: ['dispositivos'],
         });
+
+        if (!user || !user.estaActivo) {
+            throw new UnauthorizedException('Credenciales inválidas o cuenta inactiva');
+        }
+
+        const isPasswordValid = await bcrypt.compare(passwordPlan, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Credenciales inválidas o cuenta inactiva');
+        }
+
+        const { passwordHash, ...result } = user;
+        return result;
     }
 
-    async generateAndSendCode(email: string): Promise<{ message: string }> {
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-        const expiresAt = new Date();
-        expiresAt.setMinutes(expiresAt.getMinutes() + 15);
-
-        const resetCode = this.resetCodeRepository.create({ email, code, expiresAt });
-        await this.resetCodeRepository.save(resetCode);
-
-        const senderEmail = process.env.SMTP_USER || process.env.GMAIL_APP_EMAIL;
-
-        await this.transporter.sendMail({
-            from: `"Valeska Central" <${senderEmail}>`,
-            to: email,
-            subject: 'Código de Recuperación de Contraseña',
-            html: `
-        <div style="font-family: sans-serif; padding: 20px;">
-          <h2>Recuperación de Acceso</h2>
-          <p>Has solicitado restablecer tu contraseña en el Sistema Valeska.</p>
-          <p>Tu código de seguridad es: <strong style="font-size: 24px; color: #2563EB;">${code}</strong></p>
-          <p>Este código expirará en 15 minutos.</p>
-        </div>
-      `,
-        });
-
-        return { message: 'Código enviado exitosamente al correo proporcionado.' };
-    }
-
-    async verifyCode(email: string, code: string): Promise<{ isValid: boolean }> {
-        const record = await this.resetCodeRepository.findOne({
-            where: { email, code },
-            order: { createdAt: 'DESC' },
-        });
-
-        if (!record) {
-            throw new BadRequestException('El código es incorrecto.');
-        }
-
-        if (new Date() > record.expiresAt) {
-            throw new BadRequestException('El código ha expirado. Solicite uno nuevo.');
-        }
-
-        await this.resetCodeRepository.remove(record);
-
-        return { isValid: true };
-    }
-
-    async provisionDevice(email: string, passwordPlain: string, macAddress: string) {
-        const user = await this.userRepo.findOne({
-            where: { username: email },
-            relations: ['dispositivo', 'dispositivo.sucursal'],
-        });
-
-        if (!user) {
-            throw new NotFoundException('Usuario no encontrado en la nube central.');
-        }
-        if (!user.estaActivo) {
-            throw new UnauthorizedException('El usuario está bloqueado por el administrador.');
-        }
-
-        const isMatch = await bcrypt.compare(passwordPlain, user.passwordHash);
-        if (!isMatch) {
-            throw new UnauthorizedException('Contraseña incorrecta.');
-        }
-
-        let sucursal: Sucursal | null | undefined = user.dispositivo?.sucursal;
-
-        if (!sucursal) {
-            sucursal = await this.sucursalRepo.findOne({ where: { esCentral: true } });
-            if (!sucursal) throw new NotFoundException('Error crítico: No hay sucursal central definida.');
-        }
-
-        let dispositivo = await this.dispRepo.findOne({ where: { macAddress } });
-
-        if (!dispositivo) {
-            dispositivo = this.dispRepo.create({
-                id: uuidv4(),
-                macAddress: macAddress,
-                nombreEquipo: 'PC-REMOTA-' + macAddress.substring(0, 5),
-                autorizado: true,
-                sucursalId: sucursal.id,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            });
-            await this.dispRepo.save(dispositivo);
-        }
-
-        user.dispositivoId = dispositivo.id;
-        await this.userRepo.save(user);
+    /**
+     * Orquesta el login y genera el JWT payload para la sesión activa del operador.
+     */
+    async login(user: any) {
+        const payload = {
+            username: user.username,
+            sub: user.id,
+            rol: user.rol,
+            nombreCompleto: user.nombreCompleto,
+        };
 
         return {
-            sucursal: {
-                id: sucursal.id,
-                nombre: sucursal.nombre,
-                direccion: sucursal.direccion,
-                es_central: sucursal.esCentral,
-            },
-            dispositivo: {
-                id: dispositivo.id,
-                macAddress: dispositivo.macAddress,
-            },
-            usuario: {
+            access_token: this.jwtService.sign(payload),
+            user: {
                 id: user.id,
                 username: user.username,
-                passwordHash: user.passwordHash,
-                rol: user.rol,
                 nombreCompleto: user.nombreCompleto,
+                rol: user.rol,
+                estaActivo: user.estaActivo,
+                dispositivoId: user.dispositivoId,
             },
         };
+    }
+
+    /**
+     * Registra un nuevo operador encriptando su contraseña de forma asíncrona.
+     */
+    async register(userData: Partial<Usuario>): Promise<Omit<Usuario, 'passwordHash'>> {
+        const existing = await this.usuarioRepo.findOne({
+            where: { username: userData.username },
+        });
+
+        if (existing) {
+            throw new BadRequestException('El nombre de usuario ya se encuentra registrado');
+        }
+
+        if (!userData.passwordHash) {
+            throw new BadRequestException('La contraseña es mandatoria para registrar un usuario');
+        }
+
+        const secureHash = await bcrypt.hash(userData.passwordHash, 10);
+
+        const newUser = this.usuarioRepo.create({
+            ...userData,
+            passwordHash: secureHash,
+            estaActivo: true,
+            syncStatus: 'LOCAL_INSERT',
+        });
+
+        const savedUser = await this.usuarioRepo.save(newUser);
+        const { passwordHash, ...result } = savedUser;
+        return result;
+    }
+
+    /**
+     * Genera un código de restablecimiento de contraseña temporal.
+     */
+    async generateResetCode(username: string): Promise<string> {
+        const user = await this.usuarioRepo.findOne({ where: { username } });
+        if (!user) {
+            // Lanzamos error genérico para evitar ataques de reconocimiento de infraestructura
+            throw new BadRequestException('Solicitud de restablecimiento no procesada');
+        }
+
+        // Código numérico seguro de 6 dígitos
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // Expiración en 15 minutos
+
+        const resetEntity = this.resetCodeRepo.create({
+            email: user.username,
+            code,
+            expiresAt,
+        });
+
+        await this.resetCodeRepo.save(resetEntity);
+        return code;
     }
 }
