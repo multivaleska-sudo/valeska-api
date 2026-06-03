@@ -1,0 +1,161 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, EntityManager, Brackets } from 'typeorm';
+import { IMaestrosSyncRepository } from '../../domain/ports/maestros-sync-repository.interface';
+import {
+    Cliente,
+    Vehiculo,
+    EmpresaGestora,
+    PlantillaDocumento,
+    Presentante,
+    RepresentanteLegal
+} from '../../../tramites/entities/maestros.entity';
+import { PerfilGestor } from '../../../tramites/entities/perfil-gestor.entity';
+import { MessageTemplate } from '../../../tramites/entities/plantillas.entity';
+
+/**
+ * Adaptador concreto para resolver el mapeo de persistencia masiva de las 8 entidades Maestras.
+ */
+@Injectable()
+export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
+    constructor(
+        @InjectRepository(Cliente) private readonly defaultClienteRepo: Repository<Cliente>,
+        @InjectRepository(Vehiculo) private readonly defaultVehiculoRepo: Repository<Vehiculo>,
+        @InjectRepository(EmpresaGestora) private readonly defaultEmpresaRepo: Repository<EmpresaGestora>,
+        @InjectRepository(PlantillaDocumento) private readonly defaultPlantillaDocRepo: Repository<PlantillaDocumento>,
+        @InjectRepository(Presentante) private readonly defaultPresentanteRepo: Repository<Presentante>,
+        @InjectRepository(RepresentanteLegal) private readonly defaultRepLegalRepo: Repository<RepresentanteLegal>,
+        @InjectRepository(PerfilGestor) private readonly defaultPerfilRepo: Repository<PerfilGestor>,
+        @InjectRepository(MessageTemplate) private readonly defaultMsgTemplateRepo: Repository<MessageTemplate>,
+    ) { }
+
+    private getManager(tx?: unknown, fallbackRepo?: Repository<any>): EntityManager {
+        if (tx instanceof EntityManager) {
+            return tx;
+        }
+
+        if (!fallbackRepo) {
+            throw new Error(
+                'Error de Arquitectura: Se requiere un fallbackRepo cuando no se provee un EntityManager activo.'
+            );
+        }
+
+        return fallbackRepo.manager;
+    }
+
+    // --- IMPLEMENTACIÓN DE ESCRITURAS TRANSACCIONALES POR LOTES (UPSERT) ---
+
+    async upsertClientes(tx: any, clientes: Partial<Cliente>[]): Promise<void> {
+        if (!clientes || clientes.length === 0) return;
+        const manager = this.getManager(tx, this.defaultClienteRepo);
+        await manager.createQueryBuilder().insert().into(Cliente).values(clientes)
+            .orUpdate(['tipoDocumento', 'numeroDocumento', 'razonSocialNombres', 'estadoCivil', 'domicilio', 'telefono', 'updatedAt', 'syncStatus'], ['id'])
+            .execute();
+    }
+
+    async upsertVehiculos(tx: any, vehiculos: Partial<Vehiculo>[]): Promise<void> {
+        if (!vehiculos || vehiculos.length === 0) return;
+        const manager = this.getManager(tx, this.defaultVehiculoRepo);
+        await manager.createQueryBuilder().insert().into(Vehiculo).values(vehiculos)
+            .orUpdate(['chasisVin', 'placa', 'motor', 'marca', 'modelo', 'color', 'carroceria', 'categoria', 'anioFabricacion', 'anioModelo', 'updatedAt', 'syncStatus'], ['id'])
+            .execute();
+    }
+
+    async upsertEmpresasGestoras(tx: any, empresas: Partial<EmpresaGestora>[]): Promise<void> {
+        if (!empresas || empresas.length === 0) return;
+        const manager = this.getManager(tx, this.defaultEmpresaRepo);
+        await manager.createQueryBuilder().insert().into(EmpresaGestora).values(empresas)
+            .orUpdate(['ruc', 'razonSocial', 'direccion', 'updatedAt', 'syncStatus'], ['id'])
+            .execute();
+    }
+
+    async upsertPlantillasDocumentos(tx: any, plantillas: Partial<PlantillaDocumento>[]): Promise<void> {
+        if (!plantillas || plantillas.length === 0) return;
+        const manager = this.getManager(tx, this.defaultPlantillaDocRepo);
+        await manager.createQueryBuilder().insert().into(PlantillaDocumento).values(plantillas)
+            .orUpdate(['nombreDocumento', 'contenidoHtml', 'orientacionPapel', 'activo', 'updatedAt', 'syncStatus'], ['id'])
+            .execute();
+    }
+
+    async upsertPresentantes(tx: any, presentantes: Partial<Presentante>[]): Promise<void> {
+        if (!presentantes || presentantes.length === 0) return;
+        const manager = this.getManager(tx, this.defaultPresentanteRepo);
+        await manager.createQueryBuilder().insert().into(Presentante).values(presentantes)
+            .orUpdate(['dni', 'nombres', 'primerApellido', 'segundoApellido', 'updatedAt', 'syncStatus'], ['id'])
+            .execute();
+    }
+
+    async upsertRepresentantesLegales(tx: any, representantes: Partial<RepresentanteLegal>[]): Promise<void> {
+        if (!representantes || representantes.length === 0) return;
+        const manager = this.getManager(tx, this.defaultRepLegalRepo);
+        await manager.createQueryBuilder().insert().into(RepresentanteLegal).values(representantes)
+            .orUpdate(['empresaGestoraId', 'dni', 'nombres', 'primerApellido', 'segundoApellido', 'partidaRegistral', 'oficinaRegistral', 'domicilio', 'updatedAt', 'syncStatus'], ['id'])
+            .execute();
+    }
+
+    async upsertPerfilesGestor(tx: any, perfiles: Partial<PerfilGestor>[]): Promise<void> {
+        if (!perfiles || perfiles.length === 0) return;
+        const manager = this.getManager(tx, this.defaultPerfilRepo);
+        await manager.createQueryBuilder().insert().into(PerfilGestor).values(perfiles)
+            .orUpdate(['calidad', 'nombre', 'concesionario', 'importador', 'updatedAt', 'syncStatus'], ['id'])
+            .execute();
+    }
+
+    async upsertMessageTemplates(tx: any, templates: Partial<MessageTemplate>[]): Promise<void> {
+        if (!templates || templates.length === 0) return;
+        const manager = this.getManager(tx, this.defaultMsgTemplateRepo);
+        await manager.createQueryBuilder().insert().into(MessageTemplate).values(templates)
+            .orUpdate(['name', 'content', 'updatedAt', 'syncStatus'], ['id'])
+            .execute();
+    }
+
+    // --- IMPLEMENTACIÓN DE LECTURAS INDEXADAS DE ALTA VELOCIDAD (PULL CURSOR) ---
+
+    private buildCursorQuery(repo: Repository<any>, alias: string, cursorDate: Date, lastId: string, limit: number) {
+        return repo.createQueryBuilder(alias)
+            .where(
+                new Brackets((qb) => {
+                    qb.where(`${alias}.updatedAt > :cursorDate`, { cursorDate })
+                        .orWhere(`${alias}.updatedAt = :cursorDate AND ${alias}.id > :lastId`, {
+                            cursorDate,
+                            lastId,
+                        });
+                }),
+            )
+            .orderBy(`${alias}.updatedAt`, 'ASC')
+            .addOrderBy(`${alias}.id`, 'ASC')
+            .take(limit);
+    }
+
+    async fetchClientesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Cliente[]> {
+        return this.buildCursorQuery(this.defaultClienteRepo, 'cliente', cursorDate, lastId, limit).getMany();
+    }
+
+    async fetchVehiculosCursor(cursorDate: Date, lastId: string, limit: number): Promise<Vehiculo[]> {
+        return this.buildCursorQuery(this.defaultVehiculoRepo, 'vehiculo', cursorDate, lastId, limit).getMany();
+    }
+
+    async fetchEmpresasGestorasCursor(cursorDate: Date, lastId: string, limit: number): Promise<EmpresaGestora[]> {
+        return this.buildCursorQuery(this.defaultEmpresaRepo, 'empresa', cursorDate, lastId, limit).getMany();
+    }
+
+    async fetchPlantillasCursor(cursorDate: Date, lastId: string, limit: number): Promise<PlantillaDocumento[]> {
+        return this.buildCursorQuery(this.defaultPlantillaDocRepo, 'plantilla', cursorDate, lastId, limit).getMany();
+    }
+
+    async fetchPresentantesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Presentante[]> {
+        return this.buildCursorQuery(this.defaultPresentanteRepo, 'presentante', cursorDate, lastId, limit).getMany();
+    }
+
+    async fetchRepresentantesCursor(cursorDate: Date, lastId: string, limit: number): Promise<RepresentanteLegal[]> {
+        return this.buildCursorQuery(this.defaultRepLegalRepo, 'repLegal', cursorDate, lastId, limit).getMany();
+    }
+
+    async fetchPerfilesGestorCursor(cursorDate: Date, lastId: string, limit: number): Promise<PerfilGestor[]> {
+        return this.buildCursorQuery(this.defaultPerfilRepo, 'perfil', cursorDate, lastId, limit).getMany();
+    }
+
+    async fetchMessageTemplatesCursor(cursorDate: Date, lastId: string, limit: number): Promise<MessageTemplate[]> {
+        return this.buildCursorQuery(this.defaultMsgTemplateRepo, 'template', cursorDate, lastId, limit).getMany();
+    }
+}
