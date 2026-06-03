@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { Dispositivo } from './dispositivo.entity';
 
 @Entity('usuarios')
@@ -22,11 +22,14 @@ export class Usuario {
     estaActivo!: boolean;
 
     @Column({ name: 'dispositivo_id', nullable: true })
-    dispositivoId!: string;
+    dispositivoId!: string | null;
 
     @ManyToOne(() => Dispositivo, { nullable: true })
     @JoinColumn({ name: 'dispositivo_id' })
-    dispositivo!: Dispositivo;
+    dispositivo!: Dispositivo | null;
+
+    @OneToMany(() => Dispositivo, (dispositivo) => dispositivo.usuario)
+    dispositivos!: Dispositivo[];
 
     @Column({ name: 'created_at', type: 'timestamp' })
     createdAt!: Date;
