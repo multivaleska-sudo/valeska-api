@@ -2,14 +2,17 @@ import { SyncConflicto } from '../../entities/sync-conflict.entity';
 
 export const CONFLICTOS_SYNC_REPOSITORY_TOKEN = Symbol('IConflictosSyncRepository');
 
+/**
+ * Puerto de dominio para registrar colisiones lógicas durante la sincronización activa.
+ */
 export interface IConflictosSyncRepository {
     /**
-     * Inserta o actualiza colisiones de sincronización en el sistema central.
+     * Inserta o actualiza colisiones lógicas encontradas.
      */
-    upsertConflictos(manager: any, conflictos: Partial<SyncConflicto>[]): Promise<void>;
+    upsertConflictos(tx: any, conflictos: Partial<SyncConflicto>[]): Promise<void>;
 
     /**
-     * Obtiene logs de conflictos a partir de un cursor.
+     * Obtiene el listado de colisiones registradas a partir de un cursor de desempate.
      */
     fetchConflictosCursor(cursorDate: Date, lastId: string, limit: number): Promise<SyncConflicto[]>;
 }
