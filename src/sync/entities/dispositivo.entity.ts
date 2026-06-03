@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Sucursal } from './sucursal.entity';
+import { Usuario } from './usuario.entity';
 
 @Entity('dispositivos')
 export class Dispositivo {
@@ -24,6 +25,13 @@ export class Dispositivo {
     @ManyToOne(() => Sucursal)
     @JoinColumn({ name: 'sucursal_id' })
     sucursal!: Sucursal;
+
+    @Column({ name: 'usuario_id', type: 'uuid', nullable: true })
+    usuarioId!: string | null;
+
+    @ManyToOne(() => Usuario, (usuario) => usuario.dispositivos, { nullable: true, onDelete: 'SET NULL' })
+    @JoinColumn({ name: 'usuario_id' })
+    usuario!: Usuario | null;
 
     @Column({ name: 'created_at', type: 'timestamp' })
     createdAt!: Date;
