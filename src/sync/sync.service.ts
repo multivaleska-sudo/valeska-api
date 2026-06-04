@@ -69,13 +69,17 @@ export class SyncService {
       throw new BadRequestException(`La entidad '${dto.entityName}' no es reconocida por el sincronizador`);
     }
 
-    const processedCount = dto.records.length;
+    const records = dto.records.map((record) => ({
+      ...record,
+      syncStatus: 'SYNCED',
+    }));
+    const processedCount = records.length;
     this.logger.log(
       `[PUSH CHUNK] Sesion: ${dto.syncSessionId} | Entidad: ${entityName} | Chunk: ${dto.chunkIndex + 1}/${dto.totalChunks} | Lote: ${processedCount}`,
     );
 
     await this.dataSource.transaction(async (manager) => {
-      await this.handlers[entityName].push(manager, dto.records);
+      await this.handlers[entityName].push(manager, records);
     });
 
     return {
