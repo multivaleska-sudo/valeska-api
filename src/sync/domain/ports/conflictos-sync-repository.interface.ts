@@ -15,5 +15,5 @@ export interface IConflictosSyncRepository {
     /**
      * Obtiene el listado de colisiones registradas a partir de un cursor de desempate.
      */
-    fetchConflictosCursor(cursorDate: Date, lastId: string, limit: number): Promise<SyncConflicto[]>;
+    fetchConflictosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<SyncConflicto[]>;
 }

@@ -20,10 +20,10 @@ export interface ICatalogosSyncRepository {
     /**
      * Recupera tipos de trámite de forma paginada para sincronización pull.
      */
-    fetchTiposTramiteCursor(cursorDate: Date, lastId: string, limit: number): Promise<CatalogoTipoTramite[]>;
+    fetchTiposTramiteCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<CatalogoTipoTramite[]>;
 
     /**
      * Recupera situaciones de trámite de forma paginada para sincronización pull.
      */
-    fetchSituacionesCursor(cursorDate: Date, lastId: string, limit: number): Promise<CatalogoSituacion[]>;
+    fetchSituacionesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<CatalogoSituacion[]>;
 }

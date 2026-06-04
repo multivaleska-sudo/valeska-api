@@ -20,7 +20,7 @@ export interface ISeguridadSyncRepository {
     upsertSucursales(tx: EntityManager, sucursales: Partial<Sucursal>[]): Promise<void>;
 
     // --- MÉTODOS DE LECTURA PAGINADA (PULL CURSOR-BASED) ---
-    fetchUsuariosCursor(cursorDate: Date, lastId: string, limit: number): Promise<Usuario[]>;
-    fetchDispositivosCursor(cursorDate: Date, lastId: string, limit: number): Promise<Dispositivo[]>;
-    fetchSucursalesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Sucursal[]>;
+    fetchUsuariosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Usuario[]>;
+    fetchDispositivosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Dispositivo[]>;
+    fetchSucursalesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Sucursal[]>;
 }

@@ -29,7 +29,7 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
             .insert()
             .into(CatalogoTipoTramite)
             .values(tipos)
-            .orUpdate(['nombre', 'activo', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['nombre', 'activo', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -42,21 +42,24 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
             .insert()
             .into(CatalogoSituacion)
             .values(situaciones)
-            .orUpdate(['nombre', 'colorHex', 'activo', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['nombre', 'color_hex', 'activo', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
-    async fetchTiposTramiteCursor(cursorDate: Date, lastId: string, limit: number): Promise<CatalogoTipoTramite[]> {
+    async fetchTiposTramiteCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<CatalogoTipoTramite[]> {
         return this.defaultTipoRepo
             .createQueryBuilder('tipo')
             .withDeleted()
             .where(
                 new Brackets((qb) => {
-                    qb.where('tipo.updatedAt > :cursorDate', { cursorDate })
-                        .orWhere('tipo.updatedAt = :cursorDate AND tipo.id > :lastId', {
+                    qb.where('tipo.updatedAt > :cursorDate', { cursorDate });
+
+                    if (lastId) {
+                        qb.orWhere('tipo.updatedAt = :cursorDate AND tipo.id > :lastId', {
                             cursorDate,
                             lastId,
                         });
+                    }
                 }),
             )
             .orderBy('tipo.updatedAt', 'ASC')
@@ -65,17 +68,20 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
             .getMany();
     }
 
-    async fetchSituacionesCursor(cursorDate: Date, lastId: string, limit: number): Promise<CatalogoSituacion[]> {
+    async fetchSituacionesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<CatalogoSituacion[]> {
         return this.defaultSituacionRepo
             .createQueryBuilder('situacion')
             .withDeleted()
             .where(
                 new Brackets((qb) => {
-                    qb.where('situacion.updatedAt > :cursorDate', { cursorDate })
-                        .orWhere('situacion.updatedAt = :cursorDate AND situacion.id > :lastId', {
+                    qb.where('situacion.updatedAt > :cursorDate', { cursorDate });
+
+                    if (lastId) {
+                        qb.orWhere('situacion.updatedAt = :cursorDate AND situacion.id > :lastId', {
                             cursorDate,
                             lastId,
                         });
+                    }
                 }),
             )
             .orderBy('situacion.updatedAt', 'ASC')

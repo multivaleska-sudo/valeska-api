@@ -27,12 +27,12 @@ export interface IMaestrosSyncRepository {
     upsertMessageTemplates(tx: EntityManager, templates: Partial<MessageTemplate>[]): Promise<void>;
 
     // --- MÉTODOS DE LECTURA PAGINADA (PULL CURSOR-BASED) ---
-    fetchClientesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Cliente[]>;
-    fetchVehiculosCursor(cursorDate: Date, lastId: string, limit: number): Promise<Vehiculo[]>;
-    fetchEmpresasGestorasCursor(cursorDate: Date, lastId: string, limit: number): Promise<EmpresaGestora[]>;
-    fetchPlantillasCursor(cursorDate: Date, lastId: string, limit: number): Promise<PlantillaDocumento[]>;
-    fetchPresentantesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Presentante[]>;
-    fetchRepresentantesCursor(cursorDate: Date, lastId: string, limit: number): Promise<RepresentanteLegal[]>;
-    fetchPerfilesGestorCursor(cursorDate: Date, lastId: string, limit: number): Promise<PerfilGestor[]>;
-    fetchMessageTemplatesCursor(cursorDate: Date, lastId: string, limit: number): Promise<MessageTemplate[]>;
+    fetchClientesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Cliente[]>;
+    fetchVehiculosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Vehiculo[]>;
+    fetchEmpresasGestorasCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<EmpresaGestora[]>;
+    fetchPlantillasCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<PlantillaDocumento[]>;
+    fetchPresentantesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Presentante[]>;
+    fetchRepresentantesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<RepresentanteLegal[]>;
+    fetchPerfilesGestorCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<PerfilGestor[]>;
+    fetchMessageTemplatesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<MessageTemplate[]>;
 }
