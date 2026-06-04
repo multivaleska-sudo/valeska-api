@@ -17,7 +17,7 @@ export class Dispositivo {
     @Column({ default: false })
     autorizado!: boolean;
 
-    @Column({ name: 'provision_id', nullable: true })
+    @Column({ name: 'provision_id', type: 'varchar', nullable: true })
     provisionId!: string | null;
 
     @Column({ name: 'sucursal_id' })
