@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { ResetCode } from './auth/entities/reset-code.entity';
 import { SyncModule } from './sync/sync.module';
 import { TramitesModule } from './tramites/tramites.module';
 import { dataSourceOptions } from './db/data-source';
@@ -11,6 +12,7 @@ import { Usuario } from './sync/entities/usuario.entity';
 import { Dispositivo } from './sync/entities/dispositivo.entity';
 import { Sucursal } from './sync/entities/sucursal.entity';
 import { SyncConflicto } from './sync/entities/sync-conflict.entity';
+import { SyncOutboxJob } from './sync/entities/sync-outbox-job.entity';
 import { Tramite, TramiteDetalle } from './tramites/entities/tramite.entity';
 import { CatalogoTipoTramite, CatalogoSituacion } from './tramites/entities/catalogos.entity';
 import {
@@ -42,6 +44,7 @@ import { MessageTemplate } from './tramites/entities/plantillas.entity';
         Dispositivo,
         Sucursal,
         SyncConflicto,
+        SyncOutboxJob,
         Tramite,
         TramiteDetalle,
         CatalogoTipoTramite,
@@ -54,6 +57,7 @@ import { MessageTemplate } from './tramites/entities/plantillas.entity';
         RepresentanteLegal,
         PerfilGestor,
         MessageTemplate,
+        ResetCode,
       ],
     }),
 
