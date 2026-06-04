@@ -1,3 +1,4 @@
+import { EntityManager } from 'typeorm';
 import { CatalogoTipoTramite, CatalogoSituacion } from '../../../tramites/entities/catalogos.entity';
 
 export const CATALOGOS_SYNC_REPOSITORY_TOKEN = Symbol('ICatalogosSyncRepository');
@@ -9,12 +10,12 @@ export interface ICatalogosSyncRepository {
     /**
      * Realiza un UPSERT por lotes de los Tipos de Trámite.
      */
-    upsertTiposTramite(tx: any, tipos: Partial<CatalogoTipoTramite>[]): Promise<void>;
+    upsertTiposTramite(tx: EntityManager, tipos: Partial<CatalogoTipoTramite>[]): Promise<void>;
 
     /**
      * Realiza un UPSERT por lotes de las Situaciones de Trámite.
      */
-    upsertSituaciones(tx: any, situaciones: Partial<CatalogoSituacion>[]): Promise<void>;
+    upsertSituaciones(tx: EntityManager, situaciones: Partial<CatalogoSituacion>[]): Promise<void>;
 
     /**
      * Recupera tipos de trámite de forma paginada para sincronización pull.
