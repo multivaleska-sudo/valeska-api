@@ -35,7 +35,7 @@ type CursorRecord = { id: string; updatedAt?: Date; fechaConflicto?: Date };
 
 interface SyncHandler<TRecord extends CursorRecord = CursorRecord> {
   push: (tx: EntityManager, records: SyncRecord[]) => Promise<void>;
-  pull: (cursorTimestamp: Date, lastId: string, limit: number) => Promise<TRecord[]>;
+  pull: (cursorTimestamp: Date, lastId: string | undefined, limit: number) => Promise<TRecord[]>;
   cursorTimestamp: (record: TRecord) => Date;
 }
 
@@ -96,7 +96,7 @@ export class SyncService {
     }
 
     const cursorTimestamp = query.cursorTimestamp ? new Date(query.cursorTimestamp) : new Date(0);
-    const lastId = query.lastId || '';
+    const lastId = query.lastId?.trim() || undefined;
     const limit = query.limit;
     const handler = this.handlers[entityName];
     const records = await handler.pull(cursorTimestamp, lastId, limit);
@@ -135,7 +135,7 @@ export class SyncService {
 
   private buildHandlers(): Record<SyncEntityName, SyncHandler> {
     const updatedAt = <T extends CursorRecord>(record: T) => record.updatedAt ?? new Date(0);
-    const fechaConflicto = (record: SyncConflicto) => record.fechaConflicto;
+    const fechaConflicto = (record: CursorRecord) => record.fechaConflicto ?? new Date(0);
 
     return {
       tramite: {
