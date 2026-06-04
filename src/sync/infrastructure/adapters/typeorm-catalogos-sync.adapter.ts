@@ -16,11 +16,11 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
         private readonly defaultSituacionRepo: Repository<CatalogoSituacion>,
     ) { }
 
-    private getManager(tx?: any): EntityManager {
+    private getManager(tx?: EntityManager): EntityManager {
         return (tx as EntityManager) || this.defaultTipoRepo.manager;
     }
 
-    async upsertTiposTramite(tx: any, tipos: Partial<CatalogoTipoTramite>[]): Promise<void> {
+    async upsertTiposTramite(tx: EntityManager, tipos: Partial<CatalogoTipoTramite>[]): Promise<void> {
         if (!tipos || tipos.length === 0) return;
         const manager = this.getManager(tx);
 
@@ -33,7 +33,7 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
             .execute();
     }
 
-    async upsertSituaciones(tx: any, situaciones: Partial<CatalogoSituacion>[]): Promise<void> {
+    async upsertSituaciones(tx: EntityManager, situaciones: Partial<CatalogoSituacion>[]): Promise<void> {
         if (!situaciones || situaciones.length === 0) return;
         const manager = this.getManager(tx);
 
@@ -49,6 +49,7 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
     async fetchTiposTramiteCursor(cursorDate: Date, lastId: string, limit: number): Promise<CatalogoTipoTramite[]> {
         return this.defaultTipoRepo
             .createQueryBuilder('tipo')
+            .withDeleted()
             .where(
                 new Brackets((qb) => {
                     qb.where('tipo.updatedAt > :cursorDate', { cursorDate })
@@ -67,6 +68,7 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
     async fetchSituacionesCursor(cursorDate: Date, lastId: string, limit: number): Promise<CatalogoSituacion[]> {
         return this.defaultSituacionRepo
             .createQueryBuilder('situacion')
+            .withDeleted()
             .where(
                 new Brackets((qb) => {
                     qb.where('situacion.updatedAt > :cursorDate', { cursorDate })

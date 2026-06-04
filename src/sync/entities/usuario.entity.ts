@@ -1,7 +1,8 @@
-import { Entity, Column, PrimaryColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryColumn, ManyToOne, OneToMany, JoinColumn, Index } from 'typeorm';
 import { Dispositivo } from './dispositivo.entity';
 
 @Entity('usuarios')
+@Index('usuarios_updated_at_id_idx', ['updatedAt', 'id'])
 export class Usuario {
     @PrimaryColumn('uuid')
     id!: string;
@@ -38,7 +39,7 @@ export class Usuario {
     updatedAt!: Date;
 
     @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
-    deletedAt!: Date;
+    deletedAt!: Date | null;
 
     @Column({ name: 'sync_status', default: 'LOCAL_INSERT' })
     syncStatus!: string;

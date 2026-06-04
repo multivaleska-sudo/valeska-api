@@ -14,11 +14,11 @@ export class TypeOrmConflictosSyncAdapter implements IConflictosSyncRepository {
         private readonly defaultConflictoRepo: Repository<SyncConflicto>,
     ) { }
 
-    private getManager(tx?: any): EntityManager {
+    private getManager(tx?: EntityManager): EntityManager {
         return (tx as EntityManager) || this.defaultConflictoRepo.manager;
     }
 
-    async upsertConflictos(tx: any, conflictos: Partial<SyncConflicto>[]): Promise<void> {
+    async upsertConflictos(tx: EntityManager, conflictos: Partial<SyncConflicto>[]): Promise<void> {
         if (!conflictos || conflictos.length === 0) return;
         const manager = this.getManager(tx);
 
