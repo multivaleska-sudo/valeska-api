@@ -1,16 +1,25 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module';
+import { ObservabilityModule } from '../observability/observability.module';
+import { QueueModule } from '../queue/queue.module';
+import { SYNC_PUSH_QUEUE } from '../queue/queue.constants';
 import { SyncService } from './sync.service';
 import { SyncController } from './sync.controller';
+import { SyncPushProcessor } from './processors/sync-push.processor';
 import { TramitesSyncService } from './services/tramites-sync.service';
 import { CatalogosSyncService } from './services/catalogos-sync.service';
 import { MaestrosSyncService } from './services/maestros-sync.service';
 import { SeguridadSyncService } from './services/seguridad-sync.service';
 import { ConflictosSyncService } from './services/conflictos-sync.service';
+import { SyncOutboxService } from './services/sync-outbox.service';
+import { SyncPushProducerService } from './services/sync-push-producer.service';
 import { Usuario } from './entities/usuario.entity';
 import { Dispositivo } from './entities/dispositivo.entity';
 import { Sucursal } from './entities/sucursal.entity';
 import { SyncConflicto } from './entities/sync-conflict.entity';
+import { SyncOutboxJob } from './entities/sync-outbox-job.entity';
 import { Tramite, TramiteDetalle } from '../tramites/entities/tramite.entity';
 import { CatalogoTipoTramite, CatalogoSituacion } from '../tramites/entities/catalogos.entity';
 import {
@@ -44,11 +53,18 @@ import { TypeOrmConflictosSyncAdapter } from './infrastructure/adapters/typeorm-
  */
 @Module({
   imports: [
+    AuthModule,
+    ObservabilityModule,
+    QueueModule,
+    BullModule.registerQueue({
+      name: SYNC_PUSH_QUEUE,
+    }),
     TypeOrmModule.forFeature([
       Usuario,
       Dispositivo,
       Sucursal,
       SyncConflicto,
+      SyncOutboxJob,
       Tramite,
       TramiteDetalle,
       CatalogoTipoTramite,
@@ -71,6 +87,9 @@ import { TypeOrmConflictosSyncAdapter } from './infrastructure/adapters/typeorm-
     MaestrosSyncService,
     SeguridadSyncService,
     ConflictosSyncService,
+    SyncOutboxService,
+    SyncPushProducerService,
+    SyncPushProcessor,
     {
       provide: SEGURIDAD_SYNC_REPOSITORY_TOKEN,
       useClass: TypeOrmSeguridadSyncAdapter,

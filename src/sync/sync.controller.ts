@@ -1,67 +1,70 @@
 import {
-    Controller,
-    Post,
-    Get,
-    Body,
-    Query,
-    Headers,
-    HttpCode,
-    HttpStatus,
-    BadRequestException,
-    UseInterceptors,
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { SyncService } from './sync.service';
-import { PushSyncChunkDto } from './infrastructure/http/dtos/common/base-chunk.dto';
+import { Request } from 'express';
+import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PullSyncQueryDto } from './infrastructure/http/dtos/queries/pull-sync-query.dto';
+import { PushSyncChunkDto } from './infrastructure/http/dtos/common/base-chunk.dto';
 import { SreTraceInterceptor } from './infrastructure/http/interceptors/sre-trace.interceptor';
+import { SyncService } from './sync.service';
+import { SyncPushProducerService } from './services/sync-push-producer.service';
 
-/**
- * Controlador de sincronización optimizado para alto rendimiento y seguridad de red.
- * - Validación estricta con DTOs en el perímetro de entrada.
- * - Interceptor SRE para auditoría de latencia y tracing.
- * - Extracción y validación obligatoria de cabeceras de hardware y usuario.
- */
+type AuthenticatedRequest = Request & { user: AuthenticatedUser };
+
 @Controller('sync')
+@UseGuards(JwtAuthGuard)
 @UseInterceptors(SreTraceInterceptor)
 export class SyncController {
-    constructor(private readonly syncService: SyncService) { }
+  constructor(
+    private readonly syncService: SyncService,
+    private readonly syncPushProducer: SyncPushProducerService,
+  ) {}
 
-    /**
-     * Recibe y procesa de forma asíncrona un lote fragmentado de registros (Push Chunk).
-     */
-    @Post('push')
-    @HttpCode(HttpStatus.ACCEPTED)
-    async push(
-        @Headers('x-user-id') userId: string,
-        @Headers('x-device-mac') macAddress: string,
-        @Body() body: PushSyncChunkDto,
-    ) {
-        if (!userId) {
-            throw new BadRequestException('Cabecera "x-user-id" es mandatoria para autorizar la sincronización.');
-        }
-        if (!macAddress) {
-            throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la sincronización.');
-        }
-
-        return this.syncService.processPushSync(userId, macAddress, body);
+  @Post('push')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async push(
+    @Req() request: AuthenticatedRequest,
+    @Headers('x-device-mac') macAddress: string,
+    @Body() body: PushSyncChunkDto,
+  ) {
+    if (!macAddress) {
+      throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la sincronizacion.');
     }
 
-    /**
-     * Descarga de forma elástica y segura datos modificados (Pull Cursor-Based).
-     */
-    @Get('pull')
-    async pull(
-        @Headers('x-user-id') userId: string,
-        @Headers('x-device-mac') macAddress: string,
-        @Query() query: PullSyncQueryDto,
-    ) {
-        if (!userId) {
-            throw new BadRequestException('Cabecera "x-user-id" es mandatoria para autorizar la descarga de datos.');
-        }
-        if (!macAddress) {
-            throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la descarga de datos.');
-        }
+    return this.syncPushProducer.enqueue(request.user.sub, macAddress, body);
+  }
 
-        return this.syncService.processPullSync(userId, macAddress, query);
+  @Get('pull')
+  async pull(
+    @Req() request: AuthenticatedRequest,
+    @Headers('x-device-mac') macAddress: string,
+    @Query() query: PullSyncQueryDto,
+  ) {
+    if (!macAddress) {
+      throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la descarga de datos.');
     }
+
+    return this.syncService.processPullSync(request.user.sub, macAddress, query);
+  }
+
+  @Get('push-status/:outboxId')
+  async pushStatus(
+    @Req() request: AuthenticatedRequest,
+    @Param('outboxId') outboxId: string,
+  ) {
+    return this.syncPushProducer.getStatus(outboxId, request.user);
+  }
 }
