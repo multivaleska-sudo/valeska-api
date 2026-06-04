@@ -1,98 +1,513 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🚀 Valeska API - Enterprise Sync Engine & Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**Valeska API** es una plataforma backend distribuida de alto rendimiento diseñada para orquestar la sincronización de datos masivos entre múltiples sucursales offline y una base de datos PostgreSQL centralizada.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+El sistema está construido bajo los más estrictos estándares de:
 
-## Description
+* Site Reliability Engineering (SRE)
+* Domain-Driven Design (DDD)
+* Arquitectura Hexagonal (Ports & Adapters)
+* Alta disponibilidad
+* Tolerancia a fallos
+* Sincronización distribuida
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+# 🏗️ Arquitectura y Principios de Diseño
 
-```bash
-$ npm install
+El motor de sincronización de **Valeska API** ha sido diseñado para garantizar resiliencia extrema en entornos de alta concurrencia y tolerancia a cortes de red prolongados.
+
+## Arquitectura Hexagonal
+
+Desacoplamiento absoluto entre dominio e infraestructura.
+
+Los servicios consumen contratos abstractos:
+
+```ts
+ITramitesSyncRepository
 ```
 
-## Compile and run the project
+Mientras que la capa de infraestructura implementa dichos contratos mediante adaptadores TypeORM.
 
-```bash
-# development
-$ npm run start
+---
 
-# watch mode
-$ npm run start:dev
+## Paginación Indexada O(log N)
 
-# production mode
-$ npm run start:prod
+Se elimina completamente el uso de:
+
+```sql
+OFFSET
 ```
 
-## Run tests
+Todas las descargas utilizan cursores compuestos basados en índices B-Tree:
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```sql
+(updatedAt ASC, id ASC)
 ```
 
-## Deployment
+Beneficios:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+* Escalabilidad masiva
+* Respuesta consistente
+* Rendimiento estable incluso con millones de registros
+* Consultas logarítmicas
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+---
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+## Protección contra Out Of Memory (OOM)
+
+Las sincronizaciones masivas utilizan el protocolo:
+
+### Polymorphic Chunking
+
+Los registros son procesados en bloques controlados.
+
+Beneficios:
+
+* Heap estable
+* Menor presión sobre el Garbage Collector
+* Consumo de memoria constante
+* Procesamiento seguro de millones de registros
+
+---
+
+## Protección Multidispositivo (1:N)
+
+Un mismo operador puede trabajar simultáneamente desde múltiples terminales.
+
+La autorización se realiza mediante:
+
+* JWT
+* Dirección MAC del dispositivo
+* Validaciones asíncronas
+
+Esto evita:
+
+* Bloqueos de sesión
+* Conflictos lógicos
+* Desconexiones innecesarias
+
+---
+
+## Mitigación de Límites de Cloudflare
+
+Todos los procesos de sincronización se fragmentan automáticamente en bloques controlados.
+
+Objetivo:
+
+* Nunca superar el límite de 100 MB por request
+* Evitar rechazos del WAF
+* Mantener estabilidad en redes lentas
+
+---
+
+# 📂 Estructura del Proyecto
+
+```text
+valeska-api/
+│
+├── src/
+│   │
+│   ├── app.module.ts
+│   ├── app.controller.ts
+│   │
+│   ├── auth/
+│   │   ├── dto/
+│   │   └── entities/
+│   │
+│   ├── db/
+│   │
+│   ├── sync/
+│   │   ├── domain/
+│   │   │   └── ports/
+│   │   │
+│   │   ├── infrastructure/
+│   │   │
+│   │   ├── services/
+│   │   │
+│   │   └── entities/
+│   │
+│   └── tramites/
+│
+└── docker-compose.yml
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Descripción de Carpetas
 
-## Resources
+| Carpeta          | Responsabilidad                           |
+| ---------------- | ----------------------------------------- |
+| `auth`           | Seguridad, autenticación y autorización   |
+| `db`             | Configuración TypeORM y migraciones       |
+| `sync`           | Motor principal de sincronización         |
+| `tramites`       | Entidades del dominio de negocio          |
+| `services`       | Casos de uso desacoplados                 |
+| `ports`          | Interfaces de persistencia                |
+| `infrastructure` | Adaptadores TypeORM, DTOs e interceptores |
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# 🛠️ Requisitos Previos
 
-## Support
+## Node.js
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+v18.x o superior
+```
 
-## Stay in touch
+## Base de Datos
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+PostgreSQL 14+
+```
 
-## License
+## Contenedores
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+Docker
+Docker Compose
+```
+
+## Gestor de paquetes
+
+```bash
+npm
+```
+
+o
+
+```bash
+yarn
+```
+
+---
+
+# 🚀 Instalación y Configuración
+
+## 1. Clonar repositorio
+
+```bash
+git clone https://github.com/tu-organizacion/valeska-api.git
+
+cd valeska-api
+```
+
+---
+
+## 2. Instalar dependencias
+
+```bash
+npm install
+```
+
+---
+
+## 3. Configurar variables de entorno
+
+Crear un archivo:
+
+```env
+.env
+```
+
+Contenido:
+
+```env
+PORT=3001
+NODE_ENV=development
+
+# JWT
+JWT_SECRET=ingresa_una_clave_secreta_de_alta_entropia
+JWT_EXPIRES_IN=12h
+
+# PostgreSQL
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=valeska_db
+```
+
+---
+
+## 4. Levantar PostgreSQL
+
+```bash
+docker-compose up -d
+```
+
+---
+
+## 5. Ejecutar migraciones
+
+```bash
+npm run typeorm migration:run
+```
+
+---
+
+# 🚦 Ejecución del Servidor
+
+## Desarrollo
+
+```bash
+npm run start:dev
+```
+
+---
+
+## Producción
+
+```bash
+npm run build
+
+npm run start:prod
+```
+
+---
+
+# 📡 Endpoints Principales
+
+## Telemetría y Salud del Sistema
+
+### GET /
+
+Retorna:
+
+* Estado de PostgreSQL
+* Uso de CPU
+* Consumo de Heap
+* Uptime
+* Métricas SRE
+
+---
+
+### GET /health
+
+Endpoint de verificación para:
+
+* Kubernetes
+* AWS ECS
+* Docker Swarm
+* Balanceadores
+
+Respuesta:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+---
+
+# 🔐 Autenticación
+
+## POST /auth/login
+
+Valida credenciales y genera JWT.
+
+### Request
+
+```json
+{
+  "email": "admin@empresa.com",
+  "password": "********"
+}
+```
+
+---
+
+## POST /auth/register
+
+Registro de usuarios.
+
+Características:
+
+* Bcrypt
+* Hash seguro
+* Protección contra contraseñas débiles
+
+---
+
+## POST /auth/reset-code
+
+Genera códigos criptográficamente seguros.
+
+Internamente utiliza:
+
+```ts
+crypto.randomInt()
+```
+
+Ejemplo:
+
+```json
+{
+  "code": "381942"
+}
+```
+
+---
+
+# 🔄 Motor de Sincronización Distribuida
+
+Todos los endpoints requieren:
+
+```http
+x-user-id
+x-device-mac
+Authorization: Bearer JWT
+```
+
+---
+
+## POST /sync/push
+
+Recibe lotes de sincronización.
+
+### DTO
+
+```ts
+PushSyncChunkDto
+```
+
+### Características
+
+* Hasta 1000 registros por chunk
+* UPSERT atómico
+* Resolución automática de conflictos
+* Transacciones seguras
+
+Implementación basada en:
+
+```sql
+ON CONFLICT DO UPDATE
+```
+
+---
+
+## GET /sync/pull
+
+Descarga cambios pendientes.
+
+### Query Params
+
+```http
+cursorTimestamp
+lastId
+limit
+entityName
+```
+
+Ejemplo:
+
+```http
+GET /sync/pull?
+cursorTimestamp=2026-01-01T00:00:00Z&
+lastId=1200&
+limit=500&
+entityName=tramites
+```
+
+### Beneficios
+
+* Consumo controlado de RAM
+* Paginación logarítmica
+* Compatible con millones de registros
+
+---
+
+# 🛡️ Observabilidad y Trazabilidad
+
+## Trace IDs
+
+Todo el flujo HTTP es monitoreado mediante:
+
+```ts
+SreTraceInterceptor
+```
+
+---
+
+## Flujo
+
+Cada petición:
+
+1. Genera un Trace ID
+2. Lo registra en logs
+3. Lo devuelve al cliente
+
+Header:
+
+```http
+X-Trace-Id
+```
+
+---
+
+## Monitoreo de Latencia
+
+El interceptor detecta bloqueos del Event Loop.
+
+Si una petición excede:
+
+```text
+300ms
+```
+
+Se genera automáticamente:
+
+```log
+WARN - Critical Latency Detected
+```
+
+Permitendo:
+
+* Diagnóstico rápido
+* Detección temprana de cuellos de botella
+* Monitoreo SRE continuo
+
+---
+
+# 📈 Características Técnicas
+
+* Arquitectura Hexagonal
+* Domain Driven Design
+* TypeORM
+* PostgreSQL
+* JWT Authentication
+* Bcrypt
+* Docker
+* Observabilidad SRE
+* Paginación por Cursor
+* UPSERT Atómico
+* Sincronización Offline-First
+* Chunking Inteligente
+* Escalabilidad Horizontal
+* Multi-Sucursal
+* Multi-Dispositivo
+* Cloudflare Friendly
+
+---
+
+# 🏛️ Filosofía del Proyecto
+
+Valeska API fue diseñado para operar en escenarios empresariales donde la continuidad operativa es crítica.
+
+La plataforma prioriza:
+
+* Disponibilidad
+* Consistencia
+* Resiliencia
+* Escalabilidad
+* Observabilidad
+
+permitiendo sincronizar grandes volúmenes de información transaccional incluso bajo condiciones de conectividad limitada o intermitente.
+
+---
+
+## © Valeska API
+
+**Enterprise Sync Engine & Distributed Backend Platform**
+
+Construido para soportar procesamiento masivo de datos transaccionales con estándares modernos de ingeniería de software.
