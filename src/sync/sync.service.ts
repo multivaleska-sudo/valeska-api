@@ -1,222 +1,223 @@
-import { Injectable, Inject, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { type ISeguridadSyncRepository, SEGURIDAD_SYNC_REPOSITORY_TOKEN } from './domain/ports/seguridad-sync-repository.interface';
-import { TramitesSyncService } from './services/tramites-sync.service';
+import { BadRequestException, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { DataSource, EntityManager } from 'typeorm';
+import { CatalogoSituacion, CatalogoTipoTramite } from '../tramites/entities/catalogos.entity';
+import {
+  Cliente,
+  EmpresaGestora,
+  PlantillaDocumento,
+  Presentante,
+  RepresentanteLegal,
+  Vehiculo,
+} from '../tramites/entities/maestros.entity';
+import { PerfilGestor } from '../tramites/entities/perfil-gestor.entity';
+import { MessageTemplate } from '../tramites/entities/plantillas.entity';
+import { Tramite, TramiteDetalle } from '../tramites/entities/tramite.entity';
+import { PushSyncChunkDto } from './infrastructure/http/dtos/common/base-chunk.dto';
+import { PullSyncQueryDto } from './infrastructure/http/dtos/queries/pull-sync-query.dto';
+import { isSyncEntityName } from './domain/sync-entity-name';
+import type { SyncEntityName } from './domain/sync-entity-name';
+import {
+  SEGURIDAD_SYNC_REPOSITORY_TOKEN,
+} from './domain/ports/seguridad-sync-repository.interface';
+import type { ISeguridadSyncRepository } from './domain/ports/seguridad-sync-repository.interface';
+import { ConflictosSyncService } from './services/conflictos-sync.service';
 import { CatalogosSyncService } from './services/catalogos-sync.service';
 import { MaestrosSyncService } from './services/maestros-sync.service';
 import { SeguridadSyncService } from './services/seguridad-sync.service';
-import { ConflictosSyncService } from './services/conflictos-sync.service';
-import { PushSyncChunkDto } from './infrastructure/http/dtos/common/base-chunk.dto';
-import { PullSyncQueryDto } from './infrastructure/http/dtos/queries/pull-sync-query.dto';
+import { TramitesSyncService } from './services/tramites-sync.service';
+import { Dispositivo } from './entities/dispositivo.entity';
+import { Sucursal } from './entities/sucursal.entity';
+import { SyncConflicto } from './entities/sync-conflict.entity';
+import { Usuario } from './entities/usuario.entity';
 
-/**
- * Orquestador central de sincronización para Valeska API.
- * - Despachador polimórfico en transacciones atómicas ultracortas.
- * - Soporte nativo para acceso multidispositivo de operadores.
- * - Pull segmentado e indexado que previene caídas por OOM.
- */
+type SyncRecord = Record<string, unknown>;
+type CursorRecord = { id: string; updatedAt?: Date; fechaConflicto?: Date };
+
+interface SyncHandler<TRecord extends CursorRecord = CursorRecord> {
+  push: (tx: EntityManager, records: SyncRecord[]) => Promise<void>;
+  pull: (cursorTimestamp: Date, lastId: string, limit: number) => Promise<TRecord[]>;
+  cursorTimestamp: (record: TRecord) => Date;
+}
+
 @Injectable()
 export class SyncService {
-    private readonly logger = new Logger(SyncService.name);
+  private readonly logger = new Logger(SyncService.name);
+  private readonly handlers: Record<SyncEntityName, SyncHandler>;
 
-    constructor(
-        private readonly dataSource: DataSource,
-        @Inject(SEGURIDAD_SYNC_REPOSITORY_TOKEN)
-        private readonly seguridadSyncRepo: ISeguridadSyncRepository,
-        private readonly tramitesSync: TramitesSyncService,
-        private readonly catalogosSync: CatalogosSyncService,
-        private readonly maestrosSync: MaestrosSyncService,
-        private readonly seguridadSync: SeguridadSyncService,
-        private readonly conflictosSync: ConflictosSyncService,
-    ) { }
+  constructor(
+    private readonly dataSource: DataSource,
+    @Inject(SEGURIDAD_SYNC_REPOSITORY_TOKEN)
+    private readonly seguridadSyncRepo: ISeguridadSyncRepository,
+    private readonly tramitesSync: TramitesSyncService,
+    private readonly catalogosSync: CatalogosSyncService,
+    private readonly maestrosSync: MaestrosSyncService,
+    private readonly seguridadSync: SeguridadSyncService,
+    private readonly conflictosSync: ConflictosSyncService,
+  ) {
+    this.handlers = this.buildHandlers();
+  }
 
-    /**
-     * Valida la identidad y el dispositivo del operador de forma compatible con la relación 1:N.
-     */
-    private async validateOperatorDevice(userId: string, macAddress: string): Promise<void> {
-        const user = await this.seguridadSyncRepo.findOperatorById(userId);
-        if (!user || !user.estaActivo) {
-            throw new UnauthorizedException('Operador inactivo o no registrado en el servidor central');
-        }
+  async processPushSync(userId: string, macAddress: string, dto: PushSyncChunkDto) {
+    return this.processPushChunkNow(userId, macAddress, dto);
+  }
 
-        // Buscamos si la dirección MAC está autorizada en la colección multidispositivo del usuario
-        const isDeviceAuthorized = user.dispositivos.some(
-            (d) => d.macAddress === macAddress && d.autorizado,
-        );
+  async processPushChunkNow(userId: string, macAddress: string, dto: PushSyncChunkDto) {
+    await this.validateOperatorDevice(userId, macAddress);
 
-        if (!isDeviceAuthorized) {
-            this.logger.warn(`🛑 [ACCESO RECHAZADO] Operador: ${userId} | Intento desde MAC no autorizada: ${macAddress}`);
-            throw new UnauthorizedException('Terminal de hardware no autorizado para sincronizar cambios');
-        }
+    const entityName = dto.entityName.toLowerCase();
+    if (!isSyncEntityName(entityName)) {
+      throw new BadRequestException(`La entidad '${dto.entityName}' no es reconocida por el sincronizador`);
     }
 
-    /**
-     * Procesa la inserción atómica de un chunk polimórfico desviándolo al subservicio correspondiente.
-     */
-    async processPushSync(userId: string, macAddress: string, dto: PushSyncChunkDto) {
-        // 1. Validación de seguridad perimetral multidispositivo
-        await this.validateOperatorDevice(userId, macAddress);
+    const processedCount = dto.records.length;
+    this.logger.log(
+      `[PUSH CHUNK] Sesion: ${dto.syncSessionId} | Entidad: ${entityName} | Chunk: ${dto.chunkIndex + 1}/${dto.totalChunks} | Lote: ${processedCount}`,
+    );
 
-        const { entityName, records, syncSessionId, chunkIndex, totalChunks } = dto;
-        let processedCount = records.length;
+    await this.dataSource.transaction(async (manager) => {
+      await this.handlers[entityName].push(manager, dto.records);
+    });
 
-        this.logger.log(
-            `📥 [PUSH CHUNK] Sesión: ${syncSessionId} | Entidad: ${entityName} | Chunk: ${chunkIndex + 1}/${totalChunks} | Lote: ${processedCount}`,
-        );
+    return {
+      success: true,
+      syncSessionId: dto.syncSessionId,
+      entityName,
+      chunkIndex: dto.chunkIndex,
+      processedRecords: processedCount,
+    };
+  }
 
-        // 2. Transacción de base de datos ultracorta enfocada únicamente en el dominio en tránsito
-        await this.dataSource.transaction(async (manager) => {
-            switch (entityName.toLowerCase()) {
-                case 'tramite':
-                    await this.tramitesSync.push(manager, { tramites: records });
-                    break;
+  async processPullSync(userId: string, macAddress: string, query: PullSyncQueryDto) {
+    await this.validateOperatorDevice(userId, macAddress);
 
-                case 'tramite_detalle':
-                    await this.tramitesSync.push(manager, { tramiteDetalles: records });
-                    break;
-
-                case 'catalogo_tipo_tramite':
-                    await this.catalogosSync.push(manager, { catalogosTipos: records });
-                    break;
-
-                case 'catalogo_situacion':
-                    await this.catalogosSync.push(manager, { catalogosSituaciones: records });
-                    break;
-
-                case 'cliente':
-                    await this.maestrosSync.push(manager, { clientes: records });
-                    break;
-
-                case 'vehiculo':
-                    await this.maestrosSync.push(manager, { vehiculos: records });
-                    break;
-
-                case 'empresa_gestora':
-                    await this.maestrosSync.push(manager, { empresasGestoras: records });
-                    break;
-
-                case 'plantilla_documento':
-                    await this.maestrosSync.push(manager, { plantillas: records });
-                    break;
-
-                case 'presentante':
-                    await this.maestrosSync.push(manager, { presentantes: records });
-                    break;
-
-                case 'representante_legal':
-                    await this.maestrosSync.push(manager, { representantes: records });
-                    break;
-
-                case 'perfil_gestor':
-                    await this.maestrosSync.push(manager, { perfiles: records });
-                    break;
-
-                case 'message_template':
-                    await this.maestrosSync.push(manager, { templates: records });
-                    break;
-
-                case 'usuario':
-                    await this.seguridadSync.push(manager, { usuarios: records });
-                    break;
-
-                case 'dispositivo':
-                    await this.seguridadSync.push(manager, { dispositivos: records });
-                    break;
-
-                case 'sucursal':
-                    await this.seguridadSync.push(manager, { sucursales: records });
-                    break;
-
-                case 'sync_conflicto':
-                    await this.conflictosSync.push(manager, { conflictos: records });
-                    break;
-
-                default:
-                    throw new BadRequestException(`La entidad '${entityName}' no es reconocida por el despachador de sincronización`);
-            }
-        });
-
-        return {
-            success: true,
-            syncSessionId,
-            entityName,
-            chunkIndex,
-            processedRecords: processedCount,
-        };
+    const entityName = query.entityName.toLowerCase();
+    if (!isSyncEntityName(entityName)) {
+      throw new BadRequestException(`Filtro de entidad '${query.entityName}' no soportado`);
     }
 
-    /**
-     * Orquesta la descarga de datos de forma elástica y segura utilizando paginación por cursores.
-     */
-    async processPullSync(userId: string, macAddress: string, query: PullSyncQueryDto) {
-        // 1. Validación de seguridad multidispositivo
-        await this.validateOperatorDevice(userId, macAddress);
+    const cursorTimestamp = query.cursorTimestamp ? new Date(query.cursorTimestamp) : new Date(0);
+    const lastId = query.lastId || '';
+    const limit = query.limit;
+    const handler = this.handlers[entityName];
+    const records = await handler.pull(cursorTimestamp, lastId, limit);
+    const lastRecord = records.at(-1);
 
-        const baseDate = query.cursorTimestamp ? new Date(query.cursorTimestamp) : new Date(0);
-        const lastId = query.lastId || '00000000-0000-0000-0000-000000000000';
-        const limit = query.limit;
-        const entityFilter = query.entityName?.toLowerCase();
+    return {
+      entityName,
+      records,
+      nextCursor: lastRecord
+        ? {
+            cursorTimestamp: handler.cursorTimestamp(lastRecord).toISOString(),
+            lastId: lastRecord.id,
+          }
+        : null,
+      hasMore: records.length === limit,
+      timestamp: new Date().toISOString(),
+    };
+  }
 
-        this.logger.debug(
-            `📤 [PULL SOLICITADO] Operador: ${userId} | Cursor: ${baseDate.toISOString()} | Límite: ${limit} | Filtro: ${entityFilter || 'Ninguno'}`,
-        );
-
-        // 2. Si el cliente solicita una entidad específica (Diseño recomendado de alta velocidad)
-        if (entityFilter) {
-            let segmentResult: any = {};
-            switch (entityFilter) {
-                case 'tramite':
-                case 'tramite_detalle':
-                    segmentResult = await this.tramitesSync.pull(baseDate, lastId, limit);
-                    break;
-                case 'catalogo_tipo_tramite':
-                case 'catalogo_situacion':
-                    segmentResult = await this.catalogosSync.pull(baseDate, lastId, limit);
-                    break;
-                case 'cliente':
-                case 'vehiculo':
-                case 'empresa_gestora':
-                case 'plantilla_documento':
-                case 'presentante':
-                case 'representante_legal':
-                case 'perfil_gestor':
-                case 'message_template':
-                    segmentResult = await this.maestrosSync.pull(baseDate, lastId, limit);
-                    break;
-                case 'usuario':
-                case 'dispositivo':
-                case 'sucursal':
-                    segmentResult = await this.seguridadSync.pull(baseDate, lastId, limit);
-                    break;
-                case 'sync_conflicto':
-                    segmentResult = await this.conflictosSync.pull(baseDate, lastId, limit);
-                    break;
-                default:
-                    throw new BadRequestException(`Filtro de entidad '${entityFilter}' no soportado`);
-            }
-
-            return {
-                ...segmentResult,
-                timestamp: new Date().toISOString(),
-            };
-        }
-
-        // 3. Fallback: Barrido global secuencial de todas las tablas con límite estrictamente controlado
-        const [seguridad, catalogos, maestros, tramites, conflictos] = await Promise.all([
-            this.seguridadSync.pull(baseDate, lastId, limit),
-            this.catalogosSync.pull(baseDate, lastId, limit),
-            this.maestrosSync.pull(baseDate, lastId, limit),
-            this.tramitesSync.pull(baseDate, lastId, limit),
-            this.conflictosSync.pull(baseDate, lastId, limit),
-        ]);
-
-        return {
-            ...seguridad,
-            ...catalogos,
-            ...maestros,
-            ...tramites,
-            ...conflictos,
-            timestamp: new Date().toISOString(),
-        };
+  private async validateOperatorDevice(userId: string, macAddress: string): Promise<void> {
+    const user = await this.seguridadSyncRepo.findOperatorById(userId);
+    if (!user || !user.estaActivo) {
+      throw new UnauthorizedException('Operador inactivo o no registrado en el servidor central');
     }
+
+    const normalizedMac = macAddress.trim().toLowerCase();
+    const isDeviceAuthorized = user.dispositivos?.some(
+      (device) => device.macAddress.toLowerCase() === normalizedMac && device.autorizado,
+    );
+
+    if (!isDeviceAuthorized) {
+      this.logger.warn(`[ACCESO RECHAZADO] Operador: ${userId} | MAC no autorizada: ${macAddress}`);
+      throw new UnauthorizedException('Terminal de hardware no autorizado para sincronizar cambios');
+    }
+  }
+
+  private buildHandlers(): Record<SyncEntityName, SyncHandler> {
+    const updatedAt = <T extends CursorRecord>(record: T) => record.updatedAt ?? new Date(0);
+    const fechaConflicto = (record: SyncConflicto) => record.fechaConflicto;
+
+    return {
+      tramite: {
+        push: (tx, records) => this.tramitesSync.push(tx, { tramites: records as Partial<Tramite>[] }),
+        pull: (cursor, lastId, limit) => this.tramitesSync.pullTramites(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      tramite_detalle: {
+        push: (tx, records) => this.tramitesSync.push(tx, { tramiteDetalles: records as Partial<TramiteDetalle>[] }),
+        pull: (cursor, lastId, limit) => this.tramitesSync.pullTramiteDetalles(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      catalogo_tipo_tramite: {
+        push: (tx, records) => this.catalogosSync.push(tx, { catalogosTipos: records as Partial<CatalogoTipoTramite>[] }),
+        pull: (cursor, lastId, limit) => this.catalogosSync.pullTiposTramite(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      catalogo_situacion: {
+        push: (tx, records) => this.catalogosSync.push(tx, { catalogosSituaciones: records as Partial<CatalogoSituacion>[] }),
+        pull: (cursor, lastId, limit) => this.catalogosSync.pullSituaciones(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      cliente: {
+        push: (tx, records) => this.maestrosSync.push(tx, { clientes: records as Partial<Cliente>[] }),
+        pull: (cursor, lastId, limit) => this.maestrosSync.pullClientes(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      vehiculo: {
+        push: (tx, records) => this.maestrosSync.push(tx, { vehiculos: records as Partial<Vehiculo>[] }),
+        pull: (cursor, lastId, limit) => this.maestrosSync.pullVehiculos(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      empresa_gestora: {
+        push: (tx, records) => this.maestrosSync.push(tx, { empresasGestoras: records as Partial<EmpresaGestora>[] }),
+        pull: (cursor, lastId, limit) => this.maestrosSync.pullEmpresasGestoras(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      plantilla_documento: {
+        push: (tx, records) => this.maestrosSync.push(tx, { plantillas: records as Partial<PlantillaDocumento>[] }),
+        pull: (cursor, lastId, limit) => this.maestrosSync.pullPlantillas(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      presentante: {
+        push: (tx, records) => this.maestrosSync.push(tx, { presentantes: records as Partial<Presentante>[] }),
+        pull: (cursor, lastId, limit) => this.maestrosSync.pullPresentantes(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      representante_legal: {
+        push: (tx, records) => this.maestrosSync.push(tx, { representantes: records as Partial<RepresentanteLegal>[] }),
+        pull: (cursor, lastId, limit) => this.maestrosSync.pullRepresentantes(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      perfil_gestor: {
+        push: (tx, records) => this.maestrosSync.push(tx, { perfiles: records as Partial<PerfilGestor>[] }),
+        pull: (cursor, lastId, limit) => this.maestrosSync.pullPerfilesGestor(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      message_template: {
+        push: (tx, records) => this.maestrosSync.push(tx, { templates: records as Partial<MessageTemplate>[] }),
+        pull: (cursor, lastId, limit) => this.maestrosSync.pullMessageTemplates(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      usuario: {
+        push: (tx, records) => this.seguridadSync.push(tx, { usuarios: records as Partial<Usuario>[] }),
+        pull: (cursor, lastId, limit) => this.seguridadSync.pullUsuarios(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      dispositivo: {
+        push: (tx, records) => this.seguridadSync.push(tx, { dispositivos: records as Partial<Dispositivo>[] }),
+        pull: (cursor, lastId, limit) => this.seguridadSync.pullDispositivos(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      sucursal: {
+        push: (tx, records) => this.seguridadSync.push(tx, { sucursales: records as Partial<Sucursal>[] }),
+        pull: (cursor, lastId, limit) => this.seguridadSync.pullSucursales(cursor, lastId, limit),
+        cursorTimestamp: updatedAt,
+      },
+      sync_conflicto: {
+        push: (tx, records) => this.conflictosSync.push(tx, { conflictos: records as Partial<SyncConflicto>[] }),
+        pull: (cursor, lastId, limit) => this.conflictosSync.pullConflictos(cursor, lastId, limit),
+        cursorTimestamp: fechaConflicto,
+      },
+    };
+  }
 }
