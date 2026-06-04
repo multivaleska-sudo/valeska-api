@@ -1,6 +1,13 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity('password_reset_codes')
+@Index('password_reset_lookup_idx', ['email', 'usedAt', 'expiresAt'])
 export class ResetCode {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -8,12 +15,15 @@ export class ResetCode {
   @Column()
   email!: string;
 
-  @Column()
-  code!: string;
+  @Column({ name: 'code_hash' })
+  codeHash!: string;
 
-  @Column()
+  @Column({ name: 'expires_at', type: 'timestamp' })
   expiresAt!: Date;
 
-  @CreateDateColumn()
+  @Column({ name: 'used_at', type: 'timestamp', nullable: true })
+  usedAt!: Date | null;
+
+  @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 }
