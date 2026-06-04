@@ -30,11 +30,11 @@ export class CatalogosSyncService {
     }
   }
 
-  async pullTiposTramite(cursorTimestamp: Date, lastId: string, limit: number): Promise<CatalogoTipoTramite[]> {
+  async pullTiposTramite(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<CatalogoTipoTramite[]> {
     return this.catalogosSyncRepo.fetchTiposTramiteCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullSituaciones(cursorTimestamp: Date, lastId: string, limit: number): Promise<CatalogoSituacion[]> {
+  async pullSituaciones(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<CatalogoSituacion[]> {
     return this.catalogosSyncRepo.fetchSituacionesCursor(cursorTimestamp, lastId, limit);
   }
 }

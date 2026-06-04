@@ -30,16 +30,16 @@ export class SeguridadSyncService {
     if (payload.sucursales?.length) await this.seguridadSyncRepo.upsertSucursales(tx, payload.sucursales);
   }
 
-  async pullUsuarios(cursorTimestamp: Date, lastId: string, limit: number): Promise<Usuario[]> {
+  async pullUsuarios(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<Usuario[]> {
     this.logger.debug('Ejecutando pull de usuarios.');
     return this.seguridadSyncRepo.fetchUsuariosCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullDispositivos(cursorTimestamp: Date, lastId: string, limit: number): Promise<Dispositivo[]> {
+  async pullDispositivos(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<Dispositivo[]> {
     return this.seguridadSyncRepo.fetchDispositivosCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullSucursales(cursorTimestamp: Date, lastId: string, limit: number): Promise<Sucursal[]> {
+  async pullSucursales(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<Sucursal[]> {
     return this.seguridadSyncRepo.fetchSucursalesCursor(cursorTimestamp, lastId, limit);
   }
 }

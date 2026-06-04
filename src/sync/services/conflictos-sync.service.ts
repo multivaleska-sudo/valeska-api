@@ -22,7 +22,7 @@ export class ConflictosSyncService {
     }
   }
 
-  async pullConflictos(cursorTimestamp: Date, lastId: string, limit: number): Promise<SyncConflicto[]> {
+  async pullConflictos(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<SyncConflicto[]> {
     return this.conflictosSyncRepo.fetchConflictosCursor(cursorTimestamp, lastId, limit);
   }
 }

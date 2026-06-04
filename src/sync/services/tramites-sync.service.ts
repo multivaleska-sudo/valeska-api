@@ -30,11 +30,11 @@ export class TramitesSyncService {
     }
   }
 
-  async pullTramites(cursorTimestamp: Date, lastId: string, limit: number): Promise<Tramite[]> {
+  async pullTramites(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<Tramite[]> {
     return this.tramitesSyncRepo.fetchTramitesCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullTramiteDetalles(cursorTimestamp: Date, lastId: string, limit: number): Promise<TramiteDetalle[]> {
+  async pullTramiteDetalles(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<TramiteDetalle[]> {
     return this.tramitesSyncRepo.fetchTramiteDetallesCursor(cursorTimestamp, lastId, limit);
   }
 }

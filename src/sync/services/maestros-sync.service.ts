@@ -47,35 +47,35 @@ export class MaestrosSyncService {
     if (payload.templates?.length) await this.maestrosSyncRepo.upsertMessageTemplates(tx, payload.templates);
   }
 
-  async pullClientes(cursorTimestamp: Date, lastId: string, limit: number): Promise<Cliente[]> {
+  async pullClientes(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<Cliente[]> {
     return this.maestrosSyncRepo.fetchClientesCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullVehiculos(cursorTimestamp: Date, lastId: string, limit: number): Promise<Vehiculo[]> {
+  async pullVehiculos(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<Vehiculo[]> {
     return this.maestrosSyncRepo.fetchVehiculosCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullEmpresasGestoras(cursorTimestamp: Date, lastId: string, limit: number): Promise<EmpresaGestora[]> {
+  async pullEmpresasGestoras(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<EmpresaGestora[]> {
     return this.maestrosSyncRepo.fetchEmpresasGestorasCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullPlantillas(cursorTimestamp: Date, lastId: string, limit: number): Promise<PlantillaDocumento[]> {
+  async pullPlantillas(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<PlantillaDocumento[]> {
     return this.maestrosSyncRepo.fetchPlantillasCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullPresentantes(cursorTimestamp: Date, lastId: string, limit: number): Promise<Presentante[]> {
+  async pullPresentantes(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<Presentante[]> {
     return this.maestrosSyncRepo.fetchPresentantesCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullRepresentantes(cursorTimestamp: Date, lastId: string, limit: number): Promise<RepresentanteLegal[]> {
+  async pullRepresentantes(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<RepresentanteLegal[]> {
     return this.maestrosSyncRepo.fetchRepresentantesCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullPerfilesGestor(cursorTimestamp: Date, lastId: string, limit: number): Promise<PerfilGestor[]> {
+  async pullPerfilesGestor(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<PerfilGestor[]> {
     return this.maestrosSyncRepo.fetchPerfilesGestorCursor(cursorTimestamp, lastId, limit);
   }
 
-  async pullMessageTemplates(cursorTimestamp: Date, lastId: string, limit: number): Promise<MessageTemplate[]> {
+  async pullMessageTemplates(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<MessageTemplate[]> {
     return this.maestrosSyncRepo.fetchMessageTemplatesCursor(cursorTimestamp, lastId, limit);
   }
 }
