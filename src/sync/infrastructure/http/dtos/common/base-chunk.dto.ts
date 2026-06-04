@@ -1,36 +1,38 @@
+import { Transform } from 'class-transformer';
 import {
-    IsUUID,
-    IsInt,
-    IsArray,
-    ArrayMinSize,
-    ArrayMaxSize,
-    Min,
-    IsString,
-    IsNotEmpty
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  IsUUID,
+  Min,
 } from 'class-validator';
+import { SYNC_ENTITY_NAMES } from '../../../../domain/sync-entity-name';
+import type { SyncEntityName } from '../../../../domain/sync-entity-name';
 
-/**
- * DTO Polimórfico para recibir paquetes (chunks) fragmentados de sincronización.
- * Diseñado para validar el encabezado de red a alta velocidad sin bloquear el Event Loop.
- */
 export class PushSyncChunkDto {
-    @IsUUID('4', { message: 'syncSessionId debe ser un UUID v4 de sesión válido' })
-    readonly syncSessionId!: string;
+  @IsUUID('4', { message: 'syncSessionId debe ser un UUID v4 de sesion valido' })
+  readonly syncSessionId!: string;
 
-    @IsString({ message: 'entityName debe ser un string correspondiente a una entidad válida' })
-    @IsNotEmpty({ message: 'El nombre de la entidad no puede estar vacío' })
-    readonly entityName!: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase() : value))
+  @IsString({ message: 'entityName debe ser un string correspondiente a una entidad valida' })
+  @IsNotEmpty({ message: 'El nombre de la entidad no puede estar vacio' })
+  @IsIn(SYNC_ENTITY_NAMES, { message: 'entityName no es soportado por el sincronizador' })
+  readonly entityName!: SyncEntityName;
 
-    @IsInt({ message: 'chunkIndex debe ser un número entero' })
-    @Min(0, { message: 'El índice de chunk no puede ser negativo' })
-    readonly chunkIndex!: number;
+  @IsInt({ message: 'chunkIndex debe ser un numero entero' })
+  @Min(0, { message: 'El indice de chunk no puede ser negativo' })
+  readonly chunkIndex!: number;
 
-    @IsInt({ message: 'totalChunks debe ser un número entero' })
-    @Min(1, { message: 'El total de chunks debe ser al menos 1' })
-    readonly totalChunks!: number;
+  @IsInt({ message: 'totalChunks debe ser un numero entero' })
+  @Min(1, { message: 'El total de chunks debe ser al menos 1' })
+  readonly totalChunks!: number;
 
-    @IsArray({ message: 'records debe ser una colección de registros' })
-    @ArrayMinSize(1, { message: 'El lote de sincronización no puede estar vacío' })
-    @ArrayMaxSize(1000, { message: 'El tamaño de chunk excede el límite de seguridad de 1,000 registros para evitar OOM' })
-    readonly records!: Record<string, any>[];
+  @IsArray({ message: 'records debe ser una coleccion de registros' })
+  @ArrayMinSize(1, { message: 'El lote de sincronizacion no puede estar vacio' })
+  @ArrayMaxSize(1000, { message: 'El tamano de chunk excede el limite de seguridad de 1,000 registros para evitar OOM' })
+  readonly records!: Record<string, unknown>[];
 }
