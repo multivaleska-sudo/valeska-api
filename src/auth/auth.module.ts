@@ -12,6 +12,7 @@ import { Sucursal } from '../sync/entities/sucursal.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { config } from 'dotenv';
+import type { SignOptions } from 'jsonwebtoken';
 
 config();
 
@@ -24,7 +25,7 @@ config();
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: parseInt(config.get<string>('JWT_EXPIRES_IN', '3600'), 10)
+          expiresIn: config.get<string>('JWT_EXPIRES_IN', '400d') as SignOptions['expiresIn']
         },
       }),
     })
