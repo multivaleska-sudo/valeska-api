@@ -1,513 +1,543 @@
-# 🚀 Valeska API - Enterprise Sync Engine & Backend
+# Valeska API
 
-**Valeska API** es una plataforma backend distribuida de alto rendimiento diseñada para orquestar la sincronización de datos masivos entre múltiples sucursales offline y una base de datos PostgreSQL centralizada.
+Backend REST para Valeska ERP con autenticacion JWT, sincronizacion offline-first por chunks, outbox asincronico con BullMQ/Redis, persistencia PostgreSQL/TypeORM y observabilidad Prometheus/OpenTelemetry.
 
-El sistema está construido bajo los más estrictos estándares de:
+Este README esta orientado a dos usos:
 
-* Site Reliability Engineering (SRE)
-* Domain-Driven Design (DDD)
-* Arquitectura Hexagonal (Ports & Adapters)
-* Alta disponibilidad
-* Tolerancia a fallos
-* Sincronización distribuida
+- Levantar y operar la API.
+- Integrar el frontend con los contratos actuales de autenticacion y sincronizacion.
 
----
+## Stack
 
-# 🏗️ Arquitectura y Principios de Diseño
+- NestJS 11
+- TypeScript
+- TypeORM 0.3
+- PostgreSQL
+- BullMQ + Redis
+- JWT
+- Prometheus metrics en `/metrics`
+- OpenTelemetry opcional via OTLP
 
-El motor de sincronización de **Valeska API** ha sido diseñado para garantizar resiliencia extrema en entornos de alta concurrencia y tolerancia a cortes de red prolongados.
-
-## Arquitectura Hexagonal
-
-Desacoplamiento absoluto entre dominio e infraestructura.
-
-Los servicios consumen contratos abstractos:
-
-```ts
-ITramitesSyncRepository
-```
-
-Mientras que la capa de infraestructura implementa dichos contratos mediante adaptadores TypeORM.
-
----
-
-## Paginación Indexada O(log N)
-
-Se elimina completamente el uso de:
-
-```sql
-OFFSET
-```
-
-Todas las descargas utilizan cursores compuestos basados en índices B-Tree:
-
-```sql
-(updatedAt ASC, id ASC)
-```
-
-Beneficios:
-
-* Escalabilidad masiva
-* Respuesta consistente
-* Rendimiento estable incluso con millones de registros
-* Consultas logarítmicas
-
----
-
-## Protección contra Out Of Memory (OOM)
-
-Las sincronizaciones masivas utilizan el protocolo:
-
-### Polymorphic Chunking
-
-Los registros son procesados en bloques controlados.
-
-Beneficios:
-
-* Heap estable
-* Menor presión sobre el Garbage Collector
-* Consumo de memoria constante
-* Procesamiento seguro de millones de registros
-
----
-
-## Protección Multidispositivo (1:N)
-
-Un mismo operador puede trabajar simultáneamente desde múltiples terminales.
-
-La autorización se realiza mediante:
-
-* JWT
-* Dirección MAC del dispositivo
-* Validaciones asíncronas
-
-Esto evita:
-
-* Bloqueos de sesión
-* Conflictos lógicos
-* Desconexiones innecesarias
-
----
-
-## Mitigación de Límites de Cloudflare
-
-Todos los procesos de sincronización se fragmentan automáticamente en bloques controlados.
-
-Objetivo:
-
-* Nunca superar el límite de 100 MB por request
-* Evitar rechazos del WAF
-* Mantener estabilidad en redes lentas
-
----
-
-# 📂 Estructura del Proyecto
+## Estructura Principal
 
 ```text
-valeska-api/
-│
-├── src/
-│   │
-│   ├── app.module.ts
-│   ├── app.controller.ts
-│   │
-│   ├── auth/
-│   │   ├── dto/
-│   │   └── entities/
-│   │
-│   ├── db/
-│   │
-│   ├── sync/
-│   │   ├── domain/
-│   │   │   └── ports/
-│   │   │
-│   │   ├── infrastructure/
-│   │   │
-│   │   ├── services/
-│   │   │
-│   │   └── entities/
-│   │
-│   └── tramites/
-│
-└── docker-compose.yml
+src/
+  auth/                 Autenticacion, JWT guards, roles y reset de password
+  db/                   DataSource TypeORM y migraciones
+  observability/        Prometheus metrics e interceptor HTTP
+  queue/                Configuracion BullMQ/Redis
+  sync/
+    domain/             Nombres de entidades sync y puertos
+    entities/           Usuarios, dispositivos, conflictos y outbox
+    infrastructure/     DTOs HTTP y adapters TypeORM
+    processors/         Worker BullMQ para push asincronico
+    services/           Orquestacion de sync, producer y outbox
+  tramites/             Entidades operativas del ERP
 ```
 
-## Descripción de Carpetas
+## Configuracion
 
-| Carpeta          | Responsabilidad                           |
-| ---------------- | ----------------------------------------- |
-| `auth`           | Seguridad, autenticación y autorización   |
-| `db`             | Configuración TypeORM y migraciones       |
-| `sync`           | Motor principal de sincronización         |
-| `tramites`       | Entidades del dominio de negocio          |
-| `services`       | Casos de uso desacoplados                 |
-| `ports`          | Interfaces de persistencia                |
-| `infrastructure` | Adaptadores TypeORM, DTOs e interceptores |
-
----
-
-# 🛠️ Requisitos Previos
-
-## Node.js
-
-```bash
-v18.x o superior
-```
-
-## Base de Datos
-
-```bash
-PostgreSQL 14+
-```
-
-## Contenedores
-
-```bash
-Docker
-Docker Compose
-```
-
-## Gestor de paquetes
-
-```bash
-npm
-```
-
-o
-
-```bash
-yarn
-```
-
----
-
-# 🚀 Instalación y Configuración
-
-## 1. Clonar repositorio
-
-```bash
-git clone https://github.com/tu-organizacion/valeska-api.git
-
-cd valeska-api
-```
-
----
-
-## 2. Instalar dependencias
-
-```bash
-npm install
-```
-
----
-
-## 3. Configurar variables de entorno
-
-Crear un archivo:
-
-```env
-.env
-```
-
-Contenido:
+Variables principales:
 
 ```env
 PORT=3001
 NODE_ENV=development
+REQUEST_BODY_LIMIT=10mb
+CORS_ORIGINS=http://localhost:5173,tauri://localhost,http://tauri.localhost,https://tauri.localhost
 
-# JWT
-JWT_SECRET=ingresa_una_clave_secreta_de_alta_entropia
-JWT_EXPIRES_IN=12h
+JWT_SECRET=change_me
+JWT_EXPIRES_IN=24h
+BCRYPT_SALT_ROUNDS=10
 
-# PostgreSQL
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=valeska_db
+TYPEORM_LOGGING=false
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+SYNC_QUEUE_CONCURRENCY=5
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+
+OTEL_SERVICE_NAME=valeska-api
+OTEL_EXPORTER_OTLP_ENDPOINT=
 ```
 
----
+Notas:
 
-## 4. Levantar PostgreSQL
+- `OTEL_EXPORTER_OTLP_ENDPOINT` es opcional. Si no existe, la API inicia sin exportar trazas.
+- `REQUEST_BODY_LIMIT` controla el limite de Express. El DTO de sync limita cada chunk a 1000 registros.
+- `REDIS_HOST=redis` se usa dentro de Docker Compose.
 
-```bash
-docker-compose up -d
-```
-
----
-
-## 5. Ejecutar migraciones
+## Instalacion y Ejecucion
 
 ```bash
-npm run typeorm migration:run
-```
-
----
-
-# 🚦 Ejecución del Servidor
-
-## Desarrollo
-
-```bash
+npm install
+npm run migration:run
 npm run start:dev
 ```
 
----
+Con Docker Compose:
 
-## Producción
+```bash
+docker compose up -d --build
+```
+
+El compose levanta:
+
+- `valeska-api`
+- `redis`
+
+PostgreSQL se espera en la red externa configurada por el proyecto.
+
+## Scripts
 
 ```bash
 npm run build
-
+npm run start:dev
 npm run start:prod
+npm run test
+npm run test:e2e
+npm run migration:run
+npm run migration:revert
 ```
 
----
+## Headers Para Frontend
 
-# 📡 Endpoints Principales
+Endpoints protegidos:
 
-## Telemetría y Salud del Sistema
+```http
+Authorization: Bearer <access_token>
+x-device-mac: <mac-del-dispositivo-autorizado>
+Content-Type: application/json
+```
 
-### GET /
+Importante:
 
-Retorna:
+- El usuario se obtiene desde el JWT (`sub`).
+- El frontend ya no debe enviar `x-user-id`.
+- `x-device-mac` se usa como segundo factor de autorizacion contra los dispositivos asociados al usuario.
 
-* Estado de PostgreSQL
-* Uso de CPU
-* Consumo de Heap
-* Uptime
-* Métricas SRE
+## Autenticacion
 
----
+### POST `/auth/login`
 
-### GET /health
-
-Endpoint de verificación para:
-
-* Kubernetes
-* AWS ECS
-* Docker Swarm
-* Balanceadores
-
-Respuesta:
+Request:
 
 ```json
 {
-  "status": "ok"
+  "username": "operador01",
+  "password": "secret123"
 }
 ```
 
----
-
-# 🔐 Autenticación
-
-## POST /auth/login
-
-Valida credenciales y genera JWT.
-
-### Request
+Response:
 
 ```json
 {
-  "email": "admin@empresa.com",
-  "password": "********"
+  "access_token": "jwt",
+  "user": {
+    "id": "uuid",
+    "username": "operador01",
+    "nombreCompleto": "Operador Uno",
+    "rol": "OPERADOR",
+    "estaActivo": true,
+    "dispositivoId": null
+  }
 }
 ```
 
----
+### POST `/auth/register`
 
-## POST /auth/register
+Requiere JWT de usuario `ADMIN`.
 
-Registro de usuarios.
-
-Características:
-
-* Bcrypt
-* Hash seguro
-* Protección contra contraseñas débiles
-
----
-
-## POST /auth/reset-code
-
-Genera códigos criptográficamente seguros.
-
-Internamente utiliza:
-
-```ts
-crypto.randomInt()
-```
-
-Ejemplo:
+Request:
 
 ```json
 {
-  "code": "381942"
+  "username": "operador02",
+  "password": "secret123",
+  "nombreCompleto": "Operador Dos",
+  "rol": "OPERADOR"
 }
 ```
 
----
+### POST `/auth/reset-code`
 
-# 🔄 Motor de Sincronización Distribuida
+Genera un codigo temporal y lo envia por SMTP si esta configurado. La API no devuelve el codigo en la respuesta.
 
-Todos los endpoints requieren:
+Request:
 
-```http
-x-user-id
-x-device-mac
-Authorization: Bearer JWT
+```json
+{
+  "username": "operador01"
+}
 ```
 
----
+Response:
 
-## POST /sync/push
-
-Recibe lotes de sincronización.
-
-### DTO
-
-```ts
-PushSyncChunkDto
+```json
+{
+  "success": true,
+  "message": "Si la cuenta existe, se enviara un codigo de restablecimiento valido por 15 minutos."
+}
 ```
 
-### Características
+### POST `/auth/reset-password`
 
-* Hasta 1000 registros por chunk
-* UPSERT atómico
-* Resolución automática de conflictos
-* Transacciones seguras
+Request:
 
-Implementación basada en:
-
-```sql
-ON CONFLICT DO UPDATE
+```json
+{
+  "username": "operador01",
+  "code": "123456",
+  "newPassword": "newSecret123"
+}
 ```
 
----
+Response:
 
-## GET /sync/pull
-
-Descarga cambios pendientes.
-
-### Query Params
-
-```http
-cursorTimestamp
-lastId
-limit
-entityName
+```json
+{
+  "success": true,
+  "message": "Contrasena actualizada correctamente."
+}
 ```
 
-Ejemplo:
+## Sincronizacion Offline-First
 
-```http
-GET /sync/pull?
-cursorTimestamp=2026-01-01T00:00:00Z&
-lastId=1200&
-limit=500&
-entityName=tramites
-```
+El frontend debe tratar la sincronizacion como dos flujos separados:
 
-### Beneficios
+- `push`: sube cambios locales por entidad y chunk. Es asincronico.
+- `pull`: descarga cambios remotos por entidad y cursor. Es sincronico.
 
-* Consumo controlado de RAM
-* Paginación logarítmica
-* Compatible con millones de registros
+### Entidades Soportadas
 
----
-
-# 🛡️ Observabilidad y Trazabilidad
-
-## Trace IDs
-
-Todo el flujo HTTP es monitoreado mediante:
-
-```ts
-SreTraceInterceptor
-```
-
----
-
-## Flujo
-
-Cada petición:
-
-1. Genera un Trace ID
-2. Lo registra en logs
-3. Lo devuelve al cliente
-
-Header:
-
-```http
-X-Trace-Id
-```
-
----
-
-## Monitoreo de Latencia
-
-El interceptor detecta bloqueos del Event Loop.
-
-Si una petición excede:
+Valores validos para `entityName`:
 
 ```text
-300ms
+tramite
+tramite_detalle
+catalogo_tipo_tramite
+catalogo_situacion
+cliente
+vehiculo
+empresa_gestora
+plantilla_documento
+presentante
+representante_legal
+perfil_gestor
+message_template
+usuario
+dispositivo
+sucursal
+sync_conflicto
 ```
 
-Se genera automáticamente:
+### POST `/sync/push`
 
-```log
-WARN - Critical Latency Detected
+Requiere:
+
+```http
+Authorization: Bearer <access_token>
+x-device-mac: <mac>
 ```
 
-Permitendo:
+Request:
 
-* Diagnóstico rápido
-* Detección temprana de cuellos de botella
-* Monitoreo SRE continuo
+```json
+{
+  "syncSessionId": "11111111-1111-4111-8111-111111111111",
+  "entityName": "cliente",
+  "chunkIndex": 0,
+  "totalChunks": 3,
+  "records": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "tipoDocumento": "DNI",
+      "numeroDocumento": "12345678",
+      "razonSocialNombres": "Juan Perez",
+      "updatedAt": "2026-06-04T15:00:00.000Z",
+      "syncStatus": "LOCAL_UPDATE"
+    }
+  ]
+}
+```
 
----
+Response `202 Accepted`:
 
-# 📈 Características Técnicas
+```json
+{
+  "accepted": true,
+  "jobId": "outbox-uuid",
+  "outboxId": "outbox-uuid",
+  "syncSessionId": "11111111-1111-4111-8111-111111111111",
+  "entityName": "cliente",
+  "chunkIndex": 0,
+  "status": "QUEUED"
+}
+```
 
-* Arquitectura Hexagonal
-* Domain Driven Design
-* TypeORM
-* PostgreSQL
-* JWT Authentication
-* Bcrypt
-* Docker
-* Observabilidad SRE
-* Paginación por Cursor
-* UPSERT Atómico
-* Sincronización Offline-First
-* Chunking Inteligente
-* Escalabilidad Horizontal
-* Multi-Sucursal
-* Multi-Dispositivo
-* Cloudflare Friendly
+Comportamiento:
 
----
+- La API registra el chunk en `sync_outbox_jobs`.
+- BullMQ procesa el chunk en background.
+- Hay idempotencia por `(syncSessionId, entityName, chunkIndex)`.
+- Reintentos: 5 intentos con backoff exponencial.
+- Si el job falla definitivamente, queda en `DEAD_LETTER`.
 
-# 🏛️ Filosofía del Proyecto
+Estados posibles:
 
-Valeska API fue diseñado para operar en escenarios empresariales donde la continuidad operativa es crítica.
+```text
+PENDING
+QUEUED
+PROCESSING
+COMPLETED
+FAILED
+DEAD_LETTER
+```
 
-La plataforma prioriza:
+### GET `/sync/push-status/:outboxId`
 
-* Disponibilidad
-* Consistencia
-* Resiliencia
-* Escalabilidad
-* Observabilidad
+Requiere:
 
-permitiendo sincronizar grandes volúmenes de información transaccional incluso bajo condiciones de conectividad limitada o intermitente.
+```http
+Authorization: Bearer <access_token>
+x-device-mac: <mac>
+```
 
----
+Response:
 
-## © Valeska API
+```json
+{
+  "outboxId": "outbox-uuid",
+  "jobId": "outbox-uuid",
+  "syncSessionId": "11111111-1111-4111-8111-111111111111",
+  "entityName": "cliente",
+  "chunkIndex": 0,
+  "totalChunks": 3,
+  "status": "COMPLETED",
+  "attempts": 1,
+  "queuedAt": "2026-06-04T15:00:01.000Z",
+  "processingStartedAt": "2026-06-04T15:00:02.000Z",
+  "completedAt": "2026-06-04T15:00:03.000Z",
+  "failedAt": null,
+  "lastError": null
+}
+```
 
-**Enterprise Sync Engine & Distributed Backend Platform**
+Uso recomendado en frontend:
 
-Construido para soportar procesamiento masivo de datos transaccionales con estándares modernos de ingeniería de software.
+1. Enviar cada chunk con `POST /sync/push`.
+2. Guardar `outboxId` junto al chunk local.
+3. Consultar `push-status` hasta `COMPLETED`.
+4. Si queda en `FAILED`, reintentar mas tarde.
+5. Si queda en `DEAD_LETTER`, mostrar accion manual o reportar soporte.
+
+### GET `/sync/pull`
+
+Requiere:
+
+```http
+Authorization: Bearer <access_token>
+x-device-mac: <mac>
+```
+
+Query params:
+
+| Param | Requerido | Descripcion |
+| --- | --- | --- |
+| `entityName` | Si | Una entidad soportada |
+| `cursorTimestamp` | No | ISO timestamp del ultimo registro recibido |
+| `lastId` | No | ID del ultimo registro recibido para desempate |
+| `limit` | No | 1 a 100. Default: 50 |
+
+Ejemplo:
+
+```http
+GET /sync/pull?entityName=cliente&cursorTimestamp=2026-06-04T00:00:00.000Z&lastId=22222222-2222-4222-8222-222222222222&limit=50
+```
+
+Response:
+
+```json
+{
+  "entityName": "cliente",
+  "records": [
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "tipoDocumento": "DNI",
+      "numeroDocumento": "87654321",
+      "razonSocialNombres": "Maria Lopez",
+      "updatedAt": "2026-06-04T16:00:00.000Z",
+      "deletedAt": null,
+      "syncStatus": "SYNCED"
+    }
+  ],
+  "nextCursor": {
+    "cursorTimestamp": "2026-06-04T16:00:00.000Z",
+    "lastId": "33333333-3333-4333-8333-333333333333"
+  },
+  "hasMore": false,
+  "timestamp": "2026-06-04T16:00:05.000Z"
+}
+```
+
+Reglas para frontend:
+
+- Hacer pull entidad por entidad.
+- Persistir cursor por entidad, no un cursor global.
+- Si `hasMore=true`, repetir pull con `nextCursor`.
+- Si `nextCursor=null`, conservar el cursor anterior.
+- Aplicar registros con `deletedAt != null` como tombstones/eliminaciones locales.
+
+## Flujo Recomendado De Sync En Frontend
+
+1. Login y almacenamiento seguro de `access_token`.
+2. Validar o registrar localmente la MAC autorizada del dispositivo.
+3. Subir cambios locales pendientes agrupados por `entityName`.
+4. Dividir cada entidad en chunks de maximo 1000 registros.
+5. Enviar cada chunk con un mismo `syncSessionId`.
+6. Guardar `outboxId` y consultar `push-status`.
+7. Cuando los pushes criticos esten `COMPLETED`, ejecutar pulls por entidad.
+8. Persistir cursores por entidad.
+9. Resolver conflictos usando `sync_conflicto` cuando aparezcan.
+
+## Salud y Observabilidad
+
+### GET `/`
+
+Devuelve estado general, PostgreSQL, uptime, memoria y datos de runtime.
+
+### GET `/health`
+
+Response:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+### GET `/metrics`
+
+Formato Prometheus. Incluye metricas default de Node.js y metricas de la API.
+
+Metricas relevantes:
+
+```text
+sync_push_jobs_total{entity,status}
+sync_push_job_duration_seconds{entity}
+sync_push_queue_waiting
+sync_push_queue_active
+sync_push_queue_failed
+http_request_duration_seconds{method,route,status}
+```
+
+### OpenTelemetry
+
+Para exportar trazas, configurar:
+
+```env
+OTEL_SERVICE_NAME=valeska-api
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318/v1/traces
+```
+
+Si `OTEL_EXPORTER_OTLP_ENDPOINT` no existe, la API arranca normalmente sin exportador.
+
+## Validacion Global
+
+La API usa `ValidationPipe` global con:
+
+```ts
+whitelist: true
+forbidNonWhitelisted: true
+transform: true
+```
+
+Implicaciones para frontend:
+
+- No enviar propiedades extra en DTOs.
+- Enviar `limit`, `chunkIndex` y `totalChunks` como numeros.
+- Enviar fechas en formato ISO8601.
+- Enviar `entityName` exactamente como esta documentado.
+
+## Migraciones
+
+Ejecutar antes de operar una nueva version:
+
+```bash
+npm run migration:run
+```
+
+Migraciones recientes relevantes:
+
+- Hardening de auth/sync e indices de cursor.
+- Tabla `password_reset_codes`.
+- Tabla `sync_outbox_jobs`.
+
+## Consideraciones De Seguridad
+
+- No exponer `/metrics` publicamente sin control de red.
+- No enviar `x-user-id`; la identidad viene del JWT.
+- No almacenar JWT en localStorage si el cliente tiene una alternativa mas segura.
+- No mostrar `lastError` de outbox a usuarios finales sin sanitizar en UI.
+- Rotar `JWT_SECRET` y credenciales SMTP/DB fuera del repositorio.
+
+## Verificacion Local
+
+```bash
+npm run build
+npm run test
+docker compose config
+```
+
+## Contrato Rapido Para Frontend
+
+```ts
+type SyncEntityName =
+  | 'tramite'
+  | 'tramite_detalle'
+  | 'catalogo_tipo_tramite'
+  | 'catalogo_situacion'
+  | 'cliente'
+  | 'vehiculo'
+  | 'empresa_gestora'
+  | 'plantilla_documento'
+  | 'presentante'
+  | 'representante_legal'
+  | 'perfil_gestor'
+  | 'message_template'
+  | 'usuario'
+  | 'dispositivo'
+  | 'sucursal'
+  | 'sync_conflicto';
+
+type PushResponse = {
+  accepted: true;
+  jobId: string | null;
+  outboxId: string;
+  syncSessionId: string;
+  entityName: SyncEntityName;
+  chunkIndex: number;
+  status: 'PENDING' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'DEAD_LETTER';
+};
+
+type PullResponse<T> = {
+  entityName: SyncEntityName;
+  records: T[];
+  nextCursor: null | {
+    cursorTimestamp: string;
+    lastId: string;
+  };
+  hasMore: boolean;
+  timestamp: string;
+};
+```
