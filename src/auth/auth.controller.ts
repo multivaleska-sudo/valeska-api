@@ -9,7 +9,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { Roles } from './decorators/roles.decorator';
-import { LoginDto, RegisterDto, RequestResetCodeDto, ResetPasswordDto } from './dto/auth-flow.dto';
+import { LoginDto, ProvisionDeviceDto, RegisterDto, RequestResetCodeDto, ResetPasswordDto } from './dto/auth-flow.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { AuthService } from './auth.service';
@@ -25,6 +25,12 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto) {
     const user = await this.authService.validateUser(loginDto.username, loginDto.password);
     return this.authService.login(user);
+  }
+
+  @Post('provision-device')
+  @HttpCode(HttpStatus.OK)
+  async provisionDevice(@Body() provisionDto: ProvisionDeviceDto) {
+    return this.authService.provisionDevice(provisionDto);
   }
 
   @Post('register')

@@ -30,6 +30,32 @@ export class RegisterDto {
   readonly rol?: string;
 }
 
+export class ProvisionDeviceDto {
+  @IsString({ message: 'El usuario o correo debe ser una cadena de texto valida' })
+  @IsOptional()
+  readonly username?: string;
+
+  @IsString({ message: 'El correo debe ser una cadena de texto valida' })
+  @IsOptional()
+  readonly email?: string;
+
+  @IsString({ message: 'La contrasena debe ser una cadena de texto' })
+  @IsNotEmpty({ message: 'La contrasena es obligatoria' })
+  readonly password!: string;
+
+  @IsString({ message: 'macAddress debe ser una cadena de texto' })
+  @IsNotEmpty({ message: 'La MAC del dispositivo es obligatoria' })
+  readonly macAddress!: string;
+
+  @IsString({ message: 'nombreEquipo debe ser una cadena de texto' })
+  @IsOptional()
+  readonly nombreEquipo?: string;
+
+  @IsString({ message: 'sucursalId debe ser una cadena de texto' })
+  @IsOptional()
+  readonly sucursalId?: string;
+}
+
 export class RequestResetCodeDto {
   @IsString({ message: 'El nombre de usuario debe ser una cadena de texto valida' })
   @IsNotEmpty({ message: 'El nombre de usuario es obligatorio para generar el codigo de restauracion' })
