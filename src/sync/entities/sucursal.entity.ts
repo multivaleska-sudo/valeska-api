@@ -1,6 +1,7 @@
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { Entity, Column, PrimaryColumn, Index } from 'typeorm';
 
 @Entity('sucursales')
+@Index('sucursales_updated_at_id_idx', ['updatedAt', 'id'])
 export class Sucursal {
     @PrimaryColumn('uuid')
     id!: string;
@@ -9,7 +10,10 @@ export class Sucursal {
     nombre!: string;
 
     @Column({ nullable: true })
-    direccion!: string;
+    codigo!: string | null;
+
+    @Column({ nullable: true })
+    direccion!: string | null;
 
     @Column({ name: 'es_central', default: false })
     esCentral!: boolean;
@@ -21,7 +25,7 @@ export class Sucursal {
     updatedAt!: Date;
 
     @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
-    deletedAt!: Date;
+    deletedAt!: Date | null;
 
     @Column({ name: 'sync_status', default: 'LOCAL_INSERT' })
     syncStatus!: string;

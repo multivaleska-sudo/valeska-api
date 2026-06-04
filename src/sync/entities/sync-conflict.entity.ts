@@ -3,6 +3,7 @@ import { Entity, Column, PrimaryColumn, Index } from 'typeorm';
 @Entity('sync_conflictos')
 @Index('conflicto_resuelto_idx', ['resuelto'])
 @Index('conflicto_registro_idx', ['registroId'])
+@Index('sync_conflictos_fecha_id_idx', ['fechaConflicto', 'id'])
 export class SyncConflicto {
     @PrimaryColumn('uuid')
     id!: string;
