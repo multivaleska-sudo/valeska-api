@@ -9,10 +9,10 @@ export class Sucursal {
     @Column()
     nombre!: string;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     codigo!: string | null;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     direccion!: string | null;
 
     @Column({ name: 'es_central', default: false })
