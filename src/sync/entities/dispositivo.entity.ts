@@ -1,8 +1,9 @@
-import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Sucursal } from './sucursal.entity';
 import { Usuario } from './usuario.entity';
 
 @Entity('dispositivos')
+@Index('dispositivos_updated_at_id_idx', ['updatedAt', 'id'])
 export class Dispositivo {
     @PrimaryColumn('uuid')
     id!: string;
@@ -17,7 +18,7 @@ export class Dispositivo {
     autorizado!: boolean;
 
     @Column({ name: 'provision_id', nullable: true })
-    provisionId!: string;
+    provisionId!: string | null;
 
     @Column({ name: 'sucursal_id' })
     sucursalId!: string;
@@ -40,7 +41,7 @@ export class Dispositivo {
     updatedAt!: Date;
 
     @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
-    deletedAt!: Date;
+    deletedAt!: Date | null;
 
     @Column({ name: 'sync_status', default: 'LOCAL_INSERT' })
     syncStatus!: string;
