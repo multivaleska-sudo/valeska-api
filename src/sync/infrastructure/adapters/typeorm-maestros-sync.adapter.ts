@@ -29,7 +29,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         @InjectRepository(MessageTemplate) private readonly defaultMsgTemplateRepo: Repository<MessageTemplate>,
     ) { }
 
-    private getManager(tx?: unknown, fallbackRepo?: Repository<any>): EntityManager {
+    private getManager(tx?: EntityManager, fallbackRepo?: Repository<any>): EntityManager {
         if (tx instanceof EntityManager) {
             return tx;
         }
@@ -45,7 +45,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
 
     // --- IMPLEMENTACIÓN DE ESCRITURAS TRANSACCIONALES POR LOTES (UPSERT) ---
 
-    async upsertClientes(tx: any, clientes: Partial<Cliente>[]): Promise<void> {
+    async upsertClientes(tx: EntityManager, clientes: Partial<Cliente>[]): Promise<void> {
         if (!clientes || clientes.length === 0) return;
         const manager = this.getManager(tx, this.defaultClienteRepo);
         await manager.createQueryBuilder().insert().into(Cliente).values(clientes)
@@ -53,7 +53,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             .execute();
     }
 
-    async upsertVehiculos(tx: any, vehiculos: Partial<Vehiculo>[]): Promise<void> {
+    async upsertVehiculos(tx: EntityManager, vehiculos: Partial<Vehiculo>[]): Promise<void> {
         if (!vehiculos || vehiculos.length === 0) return;
         const manager = this.getManager(tx, this.defaultVehiculoRepo);
         await manager.createQueryBuilder().insert().into(Vehiculo).values(vehiculos)
@@ -61,7 +61,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             .execute();
     }
 
-    async upsertEmpresasGestoras(tx: any, empresas: Partial<EmpresaGestora>[]): Promise<void> {
+    async upsertEmpresasGestoras(tx: EntityManager, empresas: Partial<EmpresaGestora>[]): Promise<void> {
         if (!empresas || empresas.length === 0) return;
         const manager = this.getManager(tx, this.defaultEmpresaRepo);
         await manager.createQueryBuilder().insert().into(EmpresaGestora).values(empresas)
@@ -69,7 +69,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             .execute();
     }
 
-    async upsertPlantillasDocumentos(tx: any, plantillas: Partial<PlantillaDocumento>[]): Promise<void> {
+    async upsertPlantillasDocumentos(tx: EntityManager, plantillas: Partial<PlantillaDocumento>[]): Promise<void> {
         if (!plantillas || plantillas.length === 0) return;
         const manager = this.getManager(tx, this.defaultPlantillaDocRepo);
         await manager.createQueryBuilder().insert().into(PlantillaDocumento).values(plantillas)
@@ -77,7 +77,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             .execute();
     }
 
-    async upsertPresentantes(tx: any, presentantes: Partial<Presentante>[]): Promise<void> {
+    async upsertPresentantes(tx: EntityManager, presentantes: Partial<Presentante>[]): Promise<void> {
         if (!presentantes || presentantes.length === 0) return;
         const manager = this.getManager(tx, this.defaultPresentanteRepo);
         await manager.createQueryBuilder().insert().into(Presentante).values(presentantes)
@@ -85,7 +85,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             .execute();
     }
 
-    async upsertRepresentantesLegales(tx: any, representantes: Partial<RepresentanteLegal>[]): Promise<void> {
+    async upsertRepresentantesLegales(tx: EntityManager, representantes: Partial<RepresentanteLegal>[]): Promise<void> {
         if (!representantes || representantes.length === 0) return;
         const manager = this.getManager(tx, this.defaultRepLegalRepo);
         await manager.createQueryBuilder().insert().into(RepresentanteLegal).values(representantes)
@@ -93,7 +93,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             .execute();
     }
 
-    async upsertPerfilesGestor(tx: any, perfiles: Partial<PerfilGestor>[]): Promise<void> {
+    async upsertPerfilesGestor(tx: EntityManager, perfiles: Partial<PerfilGestor>[]): Promise<void> {
         if (!perfiles || perfiles.length === 0) return;
         const manager = this.getManager(tx, this.defaultPerfilRepo);
         await manager.createQueryBuilder().insert().into(PerfilGestor).values(perfiles)
@@ -101,7 +101,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             .execute();
     }
 
-    async upsertMessageTemplates(tx: any, templates: Partial<MessageTemplate>[]): Promise<void> {
+    async upsertMessageTemplates(tx: EntityManager, templates: Partial<MessageTemplate>[]): Promise<void> {
         if (!templates || templates.length === 0) return;
         const manager = this.getManager(tx, this.defaultMsgTemplateRepo);
         await manager.createQueryBuilder().insert().into(MessageTemplate).values(templates)
@@ -113,6 +113,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
 
     private buildCursorQuery(repo: Repository<any>, alias: string, cursorDate: Date, lastId: string, limit: number) {
         return repo.createQueryBuilder(alias)
+            .withDeleted()
             .where(
                 new Brackets((qb) => {
                     qb.where(`${alias}.updatedAt > :cursorDate`, { cursorDate })

@@ -16,11 +16,11 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
         private readonly defaultDetalleRepo: Repository<TramiteDetalle>,
     ) { }
 
-    private getManager(tx?: any): EntityManager {
+    private getManager(tx?: EntityManager): EntityManager {
         return (tx as EntityManager) || this.defaultTramiteRepo.manager;
     }
 
-    async upsertTramites(tx: any, tramites: Partial<Tramite>[]): Promise<void> {
+    async upsertTramites(tx: EntityManager, tramites: Partial<Tramite>[]): Promise<void> {
         if (!tramites || tramites.length === 0) return;
         const manager = this.getManager(tx);
 
@@ -61,7 +61,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
             .execute();
     }
 
-    async upsertTramiteDetalles(tx: any, detalles: Partial<TramiteDetalle>[]): Promise<void> {
+    async upsertTramiteDetalles(tx: EntityManager, detalles: Partial<TramiteDetalle>[]): Promise<void> {
         if (!detalles || detalles.length === 0) return;
         const manager = this.getManager(tx);
 
@@ -98,6 +98,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
     async fetchTramitesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Tramite[]> {
         return this.defaultTramiteRepo
             .createQueryBuilder('tramite')
+            .withDeleted()
             .where(
                 new Brackets((qb) => {
                     qb.where('tramite.updatedAt > :cursorDate', { cursorDate })
@@ -116,6 +117,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
     async fetchTramiteDetallesCursor(cursorDate: Date, lastId: string, limit: number): Promise<TramiteDetalle[]> {
         return this.defaultDetalleRepo
             .createQueryBuilder('detalle')
+            .withDeleted()
             .where(
                 new Brackets((qb) => {
                     qb.where('detalle.updatedAt > :cursorDate', { cursorDate })

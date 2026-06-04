@@ -18,7 +18,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
         @InjectRepository(Sucursal) private readonly defaultSucursalRepo: Repository<Sucursal>,
     ) { }
 
-    private getManager(tx?: unknown, fallbackRepo?: Repository<any>): EntityManager {
+    private getManager(tx?: EntityManager, fallbackRepo?: Repository<any>): EntityManager {
         if (tx instanceof EntityManager) {
             return tx;
         }
@@ -41,7 +41,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
 
     // --- MÉTODOS DE ESCRITURA POR LOTES (UPSERT) ---
 
-    async upsertUsuarios(tx: any, usuarios: Partial<Usuario>[]): Promise<void> {
+    async upsertUsuarios(tx: EntityManager, usuarios: Partial<Usuario>[]): Promise<void> {
         if (!usuarios || usuarios.length === 0) return;
         const manager = this.getManager(tx, this.defaultUsuarioRepo);
         await manager.createQueryBuilder().insert().into(Usuario).values(usuarios)
@@ -49,7 +49,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
             .execute();
     }
 
-    async upsertDispositivos(tx: any, dispositivos: Partial<Dispositivo>[]): Promise<void> {
+    async upsertDispositivos(tx: EntityManager, dispositivos: Partial<Dispositivo>[]): Promise<void> {
         if (!dispositivos || dispositivos.length === 0) return;
         const manager = this.getManager(tx, this.defaultDispositivoRepo);
         await manager.createQueryBuilder().insert().into(Dispositivo).values(dispositivos)
@@ -57,7 +57,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
             .execute();
     }
 
-    async upsertSucursales(tx: any, sucursales: Partial<Sucursal>[]): Promise<void> {
+    async upsertSucursales(tx: EntityManager, sucursales: Partial<Sucursal>[]): Promise<void> {
         if (!sucursales || sucursales.length === 0) return;
         const manager = this.getManager(tx, this.defaultSucursalRepo);
         await manager.createQueryBuilder().insert().into(Sucursal).values(sucursales)
@@ -69,6 +69,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
 
     private buildCursorQuery(repo: Repository<any>, alias: string, cursorDate: Date, lastId: string, limit: number) {
         return repo.createQueryBuilder(alias)
+            .withDeleted()
             .where(
                 new Brackets((qb) => {
                     qb.where(`${alias}.updatedAt > :cursorDate`, { cursorDate })
