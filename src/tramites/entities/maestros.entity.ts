@@ -1,6 +1,7 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 
 @Entity('clientes')
+@Index('clientes_updated_at_id_idx', ['updatedAt', 'id'])
 export class Cliente {
     @PrimaryColumn('uuid') id!: string;
     @Column({ name: 'tipo_documento' }) tipoDocumento!: string;
@@ -12,11 +13,12 @@ export class Cliente {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }
 
 @Entity('vehiculos')
+@Index('vehiculos_updated_at_id_idx', ['updatedAt', 'id'])
 export class Vehiculo {
     @PrimaryColumn('uuid') id!: string;
 
@@ -33,11 +35,12 @@ export class Vehiculo {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }
 
 @Entity('empresas_gestoras')
+@Index('empresas_gestoras_updated_at_id_idx', ['updatedAt', 'id'])
 export class EmpresaGestora {
     @PrimaryColumn('uuid') id!: string;
     @Column({ nullable: true }) ruc!: string;
@@ -46,11 +49,12 @@ export class EmpresaGestora {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }
 
 @Entity('plantillas_documentos')
+@Index('plantillas_documentos_updated_at_id_idx', ['updatedAt', 'id'])
 export class PlantillaDocumento {
     @PrimaryColumn({ type: 'varchar', length: 50 }) id!: string;
     @Column({ name: 'nombre_documento', unique: true }) nombreDocumento!: string;
@@ -60,11 +64,12 @@ export class PlantillaDocumento {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }
 
 @Entity('presentantes')
+@Index('presentantes_updated_at_id_idx', ['updatedAt', 'id'])
 export class Presentante {
     @PrimaryColumn('uuid') id!: string;
 
@@ -75,11 +80,12 @@ export class Presentante {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }
 
 @Entity('representantes_legales')
+@Index('representantes_legales_updated_at_id_idx', ['updatedAt', 'id'])
 export class RepresentanteLegal {
     @PrimaryColumn('uuid') id!: string;
 
@@ -100,6 +106,6 @@ export class RepresentanteLegal {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }
