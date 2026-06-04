@@ -25,10 +25,10 @@ export interface ITramitesSyncRepository {
      * Obtiene una página de Trámites modificados utilizando cursor compuesto.
      * Evita fugas de memoria al limitar la transferencia de datos.
      */
-    fetchTramitesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Tramite[]>;
+    fetchTramitesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Tramite[]>;
 
     /**
      * Obtiene una página de Detalles de Trámite modificados utilizando cursor compuesto.
      */
-    fetchTramiteDetallesCursor(cursorDate: Date, lastId: string, limit: number): Promise<TramiteDetalle[]>;
+    fetchTramiteDetallesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<TramiteDetalle[]>;
 }

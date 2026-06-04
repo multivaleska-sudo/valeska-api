@@ -29,29 +29,32 @@ export class TypeOrmConflictosSyncAdapter implements IConflictosSyncRepository {
             .values(conflictos)
             .orUpdate(
                 [
-                    'tablaAfectada',
-                    'registroId',
-                    'identificadorVisual',
-                    'datosLocales',
-                    'datosRemotos',
+                    'tabla_afectada',
+                    'registro_id',
+                    'identificador_visual',
+                    'datos_locales',
+                    'datos_remotos',
                     'resuelto',
-                    'fechaConflicto',
+                    'fecha_conflicto',
                 ],
                 ['id'],
             )
             .execute();
     }
 
-    async fetchConflictosCursor(cursorDate: Date, lastId: string, limit: number): Promise<SyncConflicto[]> {
+    async fetchConflictosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<SyncConflicto[]> {
         return this.defaultConflictoRepo
             .createQueryBuilder('conflicto')
             .where(
                 new Brackets((qb) => {
-                    qb.where('conflicto.fechaConflicto > :cursorDate', { cursorDate })
-                        .orWhere('conflicto.fechaConflicto = :cursorDate AND conflicto.id > :lastId', {
+                    qb.where('conflicto.fechaConflicto > :cursorDate', { cursorDate });
+
+                    if (lastId) {
+                        qb.orWhere('conflicto.fechaConflicto = :cursorDate AND conflicto.id > :lastId', {
                             cursorDate,
                             lastId,
                         });
+                    }
                 }),
             )
             .orderBy('conflicto.fechaConflicto', 'ASC')

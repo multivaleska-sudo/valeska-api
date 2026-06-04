@@ -32,29 +32,29 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
             .values(tramites)
             .orUpdate(
                 [
-                    'codigoVerificacion',
-                    'tramiteAnio',
-                    'clienteId',
-                    'vehiculoId',
-                    'tipoTramiteId',
-                    'situacionId',
-                    'nTitulo',
-                    'nFormato',
-                    'fechaPresentacion',
-                    'observacionesGenerales',
-                    'tarjetaEnOficina',
-                    'fechaTarjetaEnOficina',
-                    'placaEnOficina',
-                    'fechaPlacaEnOficina',
-                    'entregoTarjeta',
-                    'fechaEntregaTarjeta',
-                    'metodoEntregaTarjeta',
-                    'entregoPlaca',
-                    'fechaEntregaPlaca',
-                    'metodoEntregaPlaca',
-                    'observacionPlaca',
-                    'updatedAt',
-                    'syncStatus',
+                    'codigo_verificacion',
+                    'tramite_anio',
+                    'cliente_id',
+                    'vehiculo_id',
+                    'tipo_tramite_id',
+                    'situacion_id',
+                    'n_titulo',
+                    'n_formato',
+                    'fecha_presentacion',
+                    'observaciones_generales',
+                    'tarjeta_en_oficina',
+                    'fecha_tarjeta_en_oficina',
+                    'placa_en_oficina',
+                    'fecha_placa_en_oficina',
+                    'entrego_tarjeta',
+                    'fecha_entrega_tarjeta',
+                    'metodo_entrega_tarjeta',
+                    'entrego_placa',
+                    'fecha_entrega_placa',
+                    'metodo_entrega_placa',
+                    'observacion_placa',
+                    'updated_at',
+                    'sync_status',
                 ],
                 ['id'],
             )
@@ -72,40 +72,43 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
             .values(detalles)
             .orUpdate(
                 [
-                    'tramiteId',
-                    'empresaGestoraId',
-                    'representanteLegalId',
-                    'presentanteId',
-                    'tipoBoleta',
-                    'numeroBoleta',
-                    'fechaBoleta',
+                    'tramite_id',
+                    'empresa_gestora_id',
+                    'representante_legal_id',
+                    'presentante_id',
+                    'tipo_boleta',
+                    'numero_boleta',
+                    'fecha_boleta',
                     'dua',
-                    'numFormatoInmatriculacion',
-                    'numeroReciboTramite',
-                    'clausulaMonto',
-                    'clausulaFormaPago',
-                    'clausulaPagoBancarizado',
-                    'aclaracionDice',
-                    'aclaracionDebeDecir',
-                    'updatedAt',
-                    'syncStatus',
+                    'num_formato_inmatriculacion',
+                    'numero_recibo_tramite',
+                    'clausula_monto',
+                    'clausula_forma_pago',
+                    'clausula_pago_bancarizado',
+                    'aclaracion_dice',
+                    'aclaracion_debe_decir',
+                    'updated_at',
+                    'sync_status',
                 ],
                 ['id'],
             )
             .execute();
     }
 
-    async fetchTramitesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Tramite[]> {
+    async fetchTramitesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Tramite[]> {
         return this.defaultTramiteRepo
             .createQueryBuilder('tramite')
             .withDeleted()
             .where(
                 new Brackets((qb) => {
-                    qb.where('tramite.updatedAt > :cursorDate', { cursorDate })
-                        .orWhere('tramite.updatedAt = :cursorDate AND tramite.id > :lastId', {
+                    qb.where('tramite.updatedAt > :cursorDate', { cursorDate });
+
+                    if (lastId) {
+                        qb.orWhere('tramite.updatedAt = :cursorDate AND tramite.id > :lastId', {
                             cursorDate,
                             lastId,
                         });
+                    }
                 }),
             )
             .orderBy('tramite.updatedAt', 'ASC')
@@ -114,17 +117,20 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
             .getMany();
     }
 
-    async fetchTramiteDetallesCursor(cursorDate: Date, lastId: string, limit: number): Promise<TramiteDetalle[]> {
+    async fetchTramiteDetallesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<TramiteDetalle[]> {
         return this.defaultDetalleRepo
             .createQueryBuilder('detalle')
             .withDeleted()
             .where(
                 new Brackets((qb) => {
-                    qb.where('detalle.updatedAt > :cursorDate', { cursorDate })
-                        .orWhere('detalle.updatedAt = :cursorDate AND detalle.id > :lastId', {
+                    qb.where('detalle.updatedAt > :cursorDate', { cursorDate });
+
+                    if (lastId) {
+                        qb.orWhere('detalle.updatedAt = :cursorDate AND detalle.id > :lastId', {
                             cursorDate,
                             lastId,
                         });
+                    }
                 }),
             )
             .orderBy('detalle.updatedAt', 'ASC')

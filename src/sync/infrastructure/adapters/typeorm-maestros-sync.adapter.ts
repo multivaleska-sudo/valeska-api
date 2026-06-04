@@ -49,7 +49,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!clientes || clientes.length === 0) return;
         const manager = this.getManager(tx, this.defaultClienteRepo);
         await manager.createQueryBuilder().insert().into(Cliente).values(clientes)
-            .orUpdate(['tipoDocumento', 'numeroDocumento', 'razonSocialNombres', 'estadoCivil', 'domicilio', 'telefono', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['tipo_documento', 'numero_documento', 'razon_social_nombres', 'estado_civil', 'domicilio', 'telefono', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -57,7 +57,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!vehiculos || vehiculos.length === 0) return;
         const manager = this.getManager(tx, this.defaultVehiculoRepo);
         await manager.createQueryBuilder().insert().into(Vehiculo).values(vehiculos)
-            .orUpdate(['chasisVin', 'placa', 'motor', 'marca', 'modelo', 'color', 'carroceria', 'categoria', 'anioFabricacion', 'anioModelo', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['chasis_vin', 'placa', 'motor', 'marca', 'modelo', 'color', 'carroceria', 'categoria', 'anio_fabricacion', 'anio_modelo', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -65,7 +65,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!empresas || empresas.length === 0) return;
         const manager = this.getManager(tx, this.defaultEmpresaRepo);
         await manager.createQueryBuilder().insert().into(EmpresaGestora).values(empresas)
-            .orUpdate(['ruc', 'razonSocial', 'direccion', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['ruc', 'razon_social', 'direccion', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -73,7 +73,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!plantillas || plantillas.length === 0) return;
         const manager = this.getManager(tx, this.defaultPlantillaDocRepo);
         await manager.createQueryBuilder().insert().into(PlantillaDocumento).values(plantillas)
-            .orUpdate(['nombreDocumento', 'contenidoHtml', 'orientacionPapel', 'activo', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['nombre_documento', 'contenido_html', 'orientacion_papel', 'activo', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -81,7 +81,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!presentantes || presentantes.length === 0) return;
         const manager = this.getManager(tx, this.defaultPresentanteRepo);
         await manager.createQueryBuilder().insert().into(Presentante).values(presentantes)
-            .orUpdate(['dni', 'nombres', 'primerApellido', 'segundoApellido', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['dni', 'nombres', 'primer_apellido', 'segundo_apellido', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -89,7 +89,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!representantes || representantes.length === 0) return;
         const manager = this.getManager(tx, this.defaultRepLegalRepo);
         await manager.createQueryBuilder().insert().into(RepresentanteLegal).values(representantes)
-            .orUpdate(['empresaGestoraId', 'dni', 'nombres', 'primerApellido', 'segundoApellido', 'partidaRegistral', 'oficinaRegistral', 'domicilio', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['empresa_gestora_id', 'dni', 'nombres', 'primer_apellido', 'segundo_apellido', 'partida_registral', 'oficina_registral', 'domicilio', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -97,7 +97,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!perfiles || perfiles.length === 0) return;
         const manager = this.getManager(tx, this.defaultPerfilRepo);
         await manager.createQueryBuilder().insert().into(PerfilGestor).values(perfiles)
-            .orUpdate(['calidad', 'nombre', 'concesionario', 'importador', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['calidad', 'nombre', 'concesionario', 'importador', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -105,22 +105,25 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!templates || templates.length === 0) return;
         const manager = this.getManager(tx, this.defaultMsgTemplateRepo);
         await manager.createQueryBuilder().insert().into(MessageTemplate).values(templates)
-            .orUpdate(['name', 'content', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['name', 'content', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
     // --- IMPLEMENTACIÓN DE LECTURAS INDEXADAS DE ALTA VELOCIDAD (PULL CURSOR) ---
 
-    private buildCursorQuery(repo: Repository<any>, alias: string, cursorDate: Date, lastId: string, limit: number) {
+    private buildCursorQuery(repo: Repository<any>, alias: string, cursorDate: Date, lastId: string | undefined, limit: number) {
         return repo.createQueryBuilder(alias)
             .withDeleted()
             .where(
                 new Brackets((qb) => {
-                    qb.where(`${alias}.updatedAt > :cursorDate`, { cursorDate })
-                        .orWhere(`${alias}.updatedAt = :cursorDate AND ${alias}.id > :lastId`, {
+                    qb.where(`${alias}.updatedAt > :cursorDate`, { cursorDate });
+
+                    if (lastId) {
+                        qb.orWhere(`${alias}.updatedAt = :cursorDate AND ${alias}.id > :lastId`, {
                             cursorDate,
                             lastId,
                         });
+                    }
                 }),
             )
             .orderBy(`${alias}.updatedAt`, 'ASC')
@@ -128,35 +131,35 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             .take(limit);
     }
 
-    async fetchClientesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Cliente[]> {
+    async fetchClientesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Cliente[]> {
         return this.buildCursorQuery(this.defaultClienteRepo, 'cliente', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchVehiculosCursor(cursorDate: Date, lastId: string, limit: number): Promise<Vehiculo[]> {
+    async fetchVehiculosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Vehiculo[]> {
         return this.buildCursorQuery(this.defaultVehiculoRepo, 'vehiculo', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchEmpresasGestorasCursor(cursorDate: Date, lastId: string, limit: number): Promise<EmpresaGestora[]> {
+    async fetchEmpresasGestorasCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<EmpresaGestora[]> {
         return this.buildCursorQuery(this.defaultEmpresaRepo, 'empresa', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchPlantillasCursor(cursorDate: Date, lastId: string, limit: number): Promise<PlantillaDocumento[]> {
+    async fetchPlantillasCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<PlantillaDocumento[]> {
         return this.buildCursorQuery(this.defaultPlantillaDocRepo, 'plantilla', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchPresentantesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Presentante[]> {
+    async fetchPresentantesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Presentante[]> {
         return this.buildCursorQuery(this.defaultPresentanteRepo, 'presentante', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchRepresentantesCursor(cursorDate: Date, lastId: string, limit: number): Promise<RepresentanteLegal[]> {
+    async fetchRepresentantesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<RepresentanteLegal[]> {
         return this.buildCursorQuery(this.defaultRepLegalRepo, 'repLegal', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchPerfilesGestorCursor(cursorDate: Date, lastId: string, limit: number): Promise<PerfilGestor[]> {
+    async fetchPerfilesGestorCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<PerfilGestor[]> {
         return this.buildCursorQuery(this.defaultPerfilRepo, 'perfil', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchMessageTemplatesCursor(cursorDate: Date, lastId: string, limit: number): Promise<MessageTemplate[]> {
+    async fetchMessageTemplatesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<MessageTemplate[]> {
         return this.buildCursorQuery(this.defaultMsgTemplateRepo, 'template', cursorDate, lastId, limit).getMany();
     }
 }

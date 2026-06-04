@@ -45,7 +45,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
         if (!usuarios || usuarios.length === 0) return;
         const manager = this.getManager(tx, this.defaultUsuarioRepo);
         await manager.createQueryBuilder().insert().into(Usuario).values(usuarios)
-            .orUpdate(['username', 'passwordHash', 'rol', 'nombreCompleto', 'estaActivo', 'dispositivoId', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['username', 'password_hash', 'rol', 'nombre_completo', 'esta_activo', 'dispositivo_id', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -53,7 +53,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
         if (!dispositivos || dispositivos.length === 0) return;
         const manager = this.getManager(tx, this.defaultDispositivoRepo);
         await manager.createQueryBuilder().insert().into(Dispositivo).values(dispositivos)
-            .orUpdate(['macAddress', 'nombreEquipo', 'autorizado', 'provisionId', 'sucursalId', 'usuarioId', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['mac_address', 'nombre_equipo', 'autorizado', 'provision_id', 'sucursal_id', 'usuario_id', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
@@ -61,22 +61,25 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
         if (!sucursales || sucursales.length === 0) return;
         const manager = this.getManager(tx, this.defaultSucursalRepo);
         await manager.createQueryBuilder().insert().into(Sucursal).values(sucursales)
-            .orUpdate(['nombre', 'codigo', 'direccion', 'updatedAt', 'syncStatus'], ['id'])
+            .orUpdate(['nombre', 'codigo', 'direccion', 'updated_at', 'sync_status'], ['id'])
             .execute();
     }
 
     // --- MÉTODOS DE LECTURA PAGINADA (PULL CURSOR) ---
 
-    private buildCursorQuery(repo: Repository<any>, alias: string, cursorDate: Date, lastId: string, limit: number) {
+    private buildCursorQuery(repo: Repository<any>, alias: string, cursorDate: Date, lastId: string | undefined, limit: number) {
         return repo.createQueryBuilder(alias)
             .withDeleted()
             .where(
                 new Brackets((qb) => {
-                    qb.where(`${alias}.updatedAt > :cursorDate`, { cursorDate })
-                        .orWhere(`${alias}.updatedAt = :cursorDate AND ${alias}.id > :lastId`, {
+                    qb.where(`${alias}.updatedAt > :cursorDate`, { cursorDate });
+
+                    if (lastId) {
+                        qb.orWhere(`${alias}.updatedAt = :cursorDate AND ${alias}.id > :lastId`, {
                             cursorDate,
                             lastId,
                         });
+                    }
                 }),
             )
             .orderBy(`${alias}.updatedAt`, 'ASC')
@@ -84,15 +87,15 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
             .take(limit);
     }
 
-    async fetchUsuariosCursor(cursorDate: Date, lastId: string, limit: number): Promise<Usuario[]> {
+    async fetchUsuariosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Usuario[]> {
         return this.buildCursorQuery(this.defaultUsuarioRepo, 'usuario', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchDispositivosCursor(cursorDate: Date, lastId: string, limit: number): Promise<Dispositivo[]> {
+    async fetchDispositivosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Dispositivo[]> {
         return this.buildCursorQuery(this.defaultDispositivoRepo, 'dispositivo', cursorDate, lastId, limit).getMany();
     }
 
-    async fetchSucursalesCursor(cursorDate: Date, lastId: string, limit: number): Promise<Sucursal[]> {
+    async fetchSucursalesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Sucursal[]> {
         return this.buildCursorQuery(this.defaultSucursalRepo, 'sucursal', cursorDate, lastId, limit).getMany();
     }
 }
