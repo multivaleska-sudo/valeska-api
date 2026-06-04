@@ -1,6 +1,7 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, Index } from 'typeorm';
 
 @Entity('perfiles_gestor')
+@Index('perfiles_gestor_updated_at_id_idx', ['updatedAt', 'id'])
 export class PerfilGestor {
     @PrimaryColumn('uuid') id!: string;
 
@@ -18,6 +19,6 @@ export class PerfilGestor {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }

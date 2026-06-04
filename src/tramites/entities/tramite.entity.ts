@@ -1,7 +1,8 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, JoinColumn, ManyToOne } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, JoinColumn, ManyToOne, Index } from 'typeorm';
 import { RepresentanteLegal } from './maestros.entity';
 
 @Entity('tramites')
+@Index('tramites_updated_at_id_idx', ['updatedAt', 'id'])
 export class Tramite {
     @PrimaryColumn('uuid') id!: string;
     @Column({ name: 'codigo_verificacion', nullable: true }) codigoVerificacion!: string;
@@ -37,11 +38,12 @@ export class Tramite {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }
 
 @Entity('tramite_detalles')
+@Index('tramite_detalles_updated_at_id_idx', ['updatedAt', 'id'])
 export class TramiteDetalle {
     @PrimaryColumn('uuid') id!: string;
     @Column({ name: 'tramite_id', unique: true }) tramiteId!: string;
@@ -74,6 +76,6 @@ export class TramiteDetalle {
 
     @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
-    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
 }
