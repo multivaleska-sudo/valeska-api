@@ -9,6 +9,8 @@ import { ConfigService } from '@nestjs/config';
 import { Usuario } from '../sync/entities/usuario.entity';
 import { Dispositivo } from '../sync/entities/dispositivo.entity';
 import { Sucursal } from '../sync/entities/sucursal.entity';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { config } from 'dotenv';
 
 config();
@@ -20,7 +22,7 @@ config();
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET'),
+        secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
           expiresIn: parseInt(config.get<string>('JWT_EXPIRES_IN', '3600'), 10)
         },
@@ -28,7 +30,7 @@ config();
     })
   ],
   controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService],
+  providers: [AuthService, JwtAuthGuard, RolesGuard],
+  exports: [AuthService, JwtModule, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule { }
