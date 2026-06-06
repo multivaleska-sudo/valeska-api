@@ -9,6 +9,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { Roles } from './decorators/roles.decorator';
+import { Public } from './decorators/public.decorator';
 import { LoginDto, ProvisionDeviceDto, RegisterDto, RequestResetCodeDto, ResetPasswordDto } from './dto/auth-flow.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -21,6 +22,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
     const user = await this.authService.validateUser(loginDto.username, loginDto.password);
@@ -28,6 +30,7 @@ export class AuthController {
   }
 
   @Post('provision-device')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async provisionDevice(@Body() provisionDto: ProvisionDeviceDto) {
     return this.authService.provisionDevice(provisionDto);
@@ -52,6 +55,7 @@ export class AuthController {
   }
 
   @Post('reset-code')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async generateResetCode(@Body() resetDto: RequestResetCodeDto) {
     await this.authService.generateResetCode(resetDto.username);
@@ -62,6 +66,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() resetDto: ResetPasswordDto) {
     await this.authService.resetPassword(resetDto.username, resetDto.code, resetDto.newPassword);
