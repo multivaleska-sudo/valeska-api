@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, Length, ValidateNested } from 'class-validator';
 
 export class LoginDto {
   @IsString({ message: 'El nombre de usuario debe ser una cadena de texto valida' })
@@ -30,6 +31,28 @@ export class RegisterDto {
   readonly rol?: string;
 }
 
+export class ProvisionSucursalDto {
+  @IsString({ message: 'El id de sucursal debe ser una cadena de texto valida' })
+  @IsNotEmpty({ message: 'El id de sucursal es obligatorio' })
+  readonly id!: string;
+
+  @IsString({ message: 'El nombre de sucursal debe ser una cadena de texto valida' })
+  @IsNotEmpty({ message: 'El nombre de sucursal es obligatorio' })
+  readonly nombre!: string;
+
+  @IsString({ message: 'El codigo de sucursal debe ser una cadena de texto valida' })
+  @IsOptional()
+  readonly codigo?: string | null;
+
+  @IsString({ message: 'La direccion de sucursal debe ser una cadena de texto valida' })
+  @IsOptional()
+  readonly direccion?: string | null;
+
+  @IsBoolean({ message: 'esCentral debe ser booleano' })
+  @IsOptional()
+  readonly esCentral?: boolean;
+}
+
 export class ProvisionDeviceDto {
   @IsString({ message: 'El usuario o correo debe ser una cadena de texto valida' })
   @IsOptional()
@@ -40,8 +63,32 @@ export class ProvisionDeviceDto {
   readonly email?: string;
 
   @IsString({ message: 'La contrasena debe ser una cadena de texto' })
-  @IsNotEmpty({ message: 'La contrasena es obligatoria' })
-  readonly password!: string;
+  @IsOptional()
+  readonly password?: string;
+
+  @IsString({ message: 'passwordHash debe ser una cadena de texto' })
+  @IsOptional()
+  readonly passwordHash?: string;
+
+  @IsString({ message: 'El nombre completo debe ser una cadena de texto valida' })
+  @IsOptional()
+  readonly nombreCompleto?: string;
+
+  @IsString({ message: 'El rol debe ser una cadena de texto' })
+  @IsOptional()
+  readonly rol?: string;
+
+  @IsString({ message: 'provisionId debe ser una cadena de texto' })
+  @IsOptional()
+  readonly provisionId?: string;
+
+  @IsString({ message: 'userId debe ser una cadena de texto' })
+  @IsOptional()
+  readonly userId?: string;
+
+  @IsString({ message: 'deviceId debe ser una cadena de texto' })
+  @IsOptional()
+  readonly deviceId?: string;
 
   @IsString({ message: 'macAddress debe ser una cadena de texto' })
   @IsNotEmpty({ message: 'La MAC del dispositivo es obligatoria' })
@@ -54,6 +101,11 @@ export class ProvisionDeviceDto {
   @IsString({ message: 'sucursalId debe ser una cadena de texto' })
   @IsOptional()
   readonly sucursalId?: string;
+
+  @ValidateNested()
+  @Type(() => ProvisionSucursalDto)
+  @IsOptional()
+  readonly sucursal?: ProvisionSucursalDto;
 }
 
 export class RequestResetCodeDto {
