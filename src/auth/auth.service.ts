@@ -77,9 +77,15 @@ export class AuthService {
       throw new BadRequestException('username o email es requerido para aprovisionar el dispositivo');
     }
 
-    const user = await this.validateUser(username, dto.password);
+    if (!dto.password && !dto.passwordHash) {
+      throw new BadRequestException('password o passwordHash es requerido para aprovisionar el dispositivo');
+    }
+
+    const user = dto.password
+      ? await this.validateUser(username, dto.password)
+      : await this.bootstrapUserFromProvisionFile(username, dto);
     const macAddress = this.normalizeMac(dto.macAddress);
-    const sucursal = await this.resolveSucursalForProvision(user, dto.sucursalId);
+    const sucursal = await this.resolveSucursalForProvision(user, dto);
     const now = new Date();
 
     let dispositivo = await this.dispositivoRepo
@@ -89,11 +95,11 @@ export class AuthService {
 
     if (!dispositivo) {
       dispositivo = this.dispositivoRepo.create({
-        id: randomUUID(),
+        id: dto.deviceId || randomUUID(),
         macAddress,
         nombreEquipo: dto.nombreEquipo || 'EQUIPO-VALESKA',
         autorizado: true,
-        provisionId: null,
+        provisionId: dto.provisionId || null,
         sucursalId: sucursal.id,
         usuarioId: user.id,
         createdAt: now,
@@ -107,6 +113,7 @@ export class AuthService {
       dispositivo.autorizado = true;
       dispositivo.sucursalId = dto.sucursalId || dispositivo.sucursalId || sucursal.id;
       dispositivo.usuarioId = user.id;
+      dispositivo.provisionId = dto.provisionId || dispositivo.provisionId || null;
       dispositivo.updatedAt = now;
       dispositivo.syncStatus = 'SYNCED';
     }
@@ -173,6 +180,53 @@ export class AuthService {
     return result;
   }
 
+  private async bootstrapUserFromProvisionFile(
+    username: string,
+    dto: ProvisionDeviceDto,
+  ): Promise<PublicUser> {
+    const normalizedUsername = username.trim();
+    if (!dto.passwordHash) {
+      throw new BadRequestException('passwordHash es requerido para provisionar desde archivo .valeska');
+    }
+
+    const now = new Date();
+    let user = await this.usuarioRepo.findOne({
+      where: { username: normalizedUsername },
+      relations: ['dispositivos'],
+    });
+
+    if (!user) {
+      user = this.usuarioRepo.create({
+        id: dto.userId || randomUUID(),
+        username: normalizedUsername,
+        passwordHash: dto.passwordHash,
+        rol: dto.rol || 'OPERADOR',
+        nombreCompleto: dto.nombreCompleto || normalizedUsername,
+        estaActivo: true,
+        dispositivoId: null,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        syncStatus: 'SYNCED',
+      });
+    } else {
+      user.rol = dto.rol || user.rol || 'OPERADOR';
+      user.nombreCompleto = dto.nombreCompleto || user.nombreCompleto || normalizedUsername;
+      user.estaActivo = true;
+      user.deletedAt = null;
+      user.updatedAt = now;
+      user.syncStatus = 'SYNCED';
+    }
+
+    const savedUser = await this.usuarioRepo.save(user);
+    const freshUser = await this.usuarioRepo.findOneOrFail({
+      where: { id: savedUser.id },
+      relations: ['dispositivos'],
+    });
+    const { passwordHash, ...publicUser } = freshUser;
+    return publicUser;
+  }
+
   async generateResetCode(username: string): Promise<void> {
     const user = await this.usuarioRepo.findOne({ where: { username } });
     if (!user) {
@@ -231,7 +285,38 @@ export class AuthService {
     return macAddress;
   }
 
-  private async resolveSucursalForProvision(user: PublicUser, requestedSucursalId?: string): Promise<Sucursal> {
+  private async resolveSucursalForProvision(user: PublicUser, dto: ProvisionDeviceDto): Promise<Sucursal> {
+    const requestedSucursalId = dto.sucursalId || dto.sucursal?.id;
+
+    if (dto.sucursal) {
+      const now = new Date();
+      let sucursal = await this.sucursalRepo.findOne({ where: { id: dto.sucursal.id } });
+
+      if (!sucursal) {
+        sucursal = this.sucursalRepo.create({
+          id: dto.sucursal.id,
+          nombre: dto.sucursal.nombre,
+          codigo: dto.sucursal.codigo || null,
+          direccion: dto.sucursal.direccion || null,
+          esCentral: dto.sucursal.esCentral || false,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: null,
+          syncStatus: 'SYNCED',
+        });
+      } else {
+        sucursal.nombre = dto.sucursal.nombre || sucursal.nombre;
+        sucursal.codigo = dto.sucursal.codigo ?? sucursal.codigo ?? null;
+        sucursal.direccion = dto.sucursal.direccion ?? sucursal.direccion ?? null;
+        sucursal.esCentral = dto.sucursal.esCentral ?? sucursal.esCentral;
+        sucursal.updatedAt = now;
+        sucursal.deletedAt = null;
+        sucursal.syncStatus = 'SYNCED';
+      }
+
+      return this.sucursalRepo.save(sucursal);
+    }
+
     if (requestedSucursalId) {
       const requested = await this.sucursalRepo.findOne({ where: { id: requestedSucursalId } });
       if (requested) return requested;
