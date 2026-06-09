@@ -54,3 +54,8 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Desktop updater runtime artifacts
+/storage/desktop-updates/files/
+/storage/desktop-updates/releases.json
+!/storage/desktop-updates/releases.example.json
