@@ -15,10 +15,15 @@ services:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       SYNC_QUEUE_CONCURRENCY: ${SYNC_QUEUE_CONCURRENCY:-5}
+      DESKTOP_UPDATES_DIR: storage/desktop-updates/files
+      DESKTOP_UPDATES_MANIFEST: storage/desktop-updates/releases.json
+      DESKTOP_UPDATES_PUBLIC_BASE_URL: https://valeska-api.studios-tkoh.online
     depends_on:
       - redis
     networks:
       - valeska_shared_net
+    volumes:
+      - ./storage:/usr/src/app/storage
 
   redis:
     image: redis:7-alpine
