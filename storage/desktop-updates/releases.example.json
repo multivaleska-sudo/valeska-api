@@ -1,0 +1,14 @@
+{
+  "releases": [
+    {
+      "version": "5.1.0",
+      "target": "windows",
+      "arch": "x86_64",
+      "fileName": "valeska_5.1.0_x64_es-ES.msi",
+      "signature": "PEGAR_AQUI_EL_CONTENIDO_DEL_ARCHIVO_SIG",
+      "notes": "Actualizacion de modulos y mejoras de sincronizacion.",
+      "pubDate": "2026-06-09T00:00:00.000Z",
+      "enabled": false
+    }
+  ]
+}
