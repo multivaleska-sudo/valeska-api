@@ -21,6 +21,7 @@ import { PushSyncChunkDto } from './infrastructure/http/dtos/common/base-chunk.d
 import { SreTraceInterceptor } from './infrastructure/http/interceptors/sre-trace.interceptor';
 import { SyncService } from './sync.service';
 import { SyncPushProducerService } from './services/sync-push-producer.service';
+import { SyncHealthService } from './services/sync-health.service';
 
 type AuthenticatedRequest = Request & { user: AuthenticatedUser };
 
@@ -31,6 +32,7 @@ export class SyncController {
   constructor(
     private readonly syncService: SyncService,
     private readonly syncPushProducer: SyncPushProducerService,
+    private readonly syncHealthService: SyncHealthService,
   ) {}
 
   @Post('push')
@@ -66,5 +68,13 @@ export class SyncController {
     @Param('outboxId') outboxId: string,
   ) {
     return this.syncPushProducer.getStatus(outboxId, request.user);
+  }
+
+  @Get('health')
+  async health(
+    @Req() request: AuthenticatedRequest,
+    @Query('tramiteId') tramiteId?: string,
+  ) {
+    return this.syncHealthService.getHealthSummary(request.user, tramiteId);
   }
 }
