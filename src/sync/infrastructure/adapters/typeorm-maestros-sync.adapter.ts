@@ -12,6 +12,9 @@ import {
 } from '../../../tramites/entities/maestros.entity';
 import { PerfilGestor } from '../../../tramites/entities/perfil-gestor.entity';
 import { MessageTemplate } from '../../../tramites/entities/plantillas.entity';
+import type { SyncPushResult } from '../../domain/sync-push-result';
+import { emptySyncPushResult } from '../../domain/sync-push-result';
+import { splitOptimisticConflicts } from './optimistic-sync-utils';
 
 /**
  * Adaptador concreto para resolver el mapeo de persistencia masiva de las 8 entidades Maestras.
@@ -45,20 +48,38 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
 
     // --- IMPLEMENTACIÓN DE ESCRITURAS TRANSACCIONALES POR LOTES (UPSERT) ---
 
-    async upsertClientes(tx: EntityManager, clientes: Partial<Cliente>[]): Promise<void> {
-        if (!clientes || clientes.length === 0) return;
+    async upsertClientes(tx: EntityManager, clientes: Partial<Cliente>[]): Promise<SyncPushResult> {
+        if (!clientes || clientes.length === 0) return emptySyncPushResult();
         const manager = this.getManager(tx, this.defaultClienteRepo);
-        await manager.createQueryBuilder().insert().into(Cliente).values(clientes)
-            .orUpdate(['tipo_documento', 'numero_documento', 'razon_social_nombres', 'estado_civil', 'domicilio', 'telefono', 'updated_at', 'sync_status'], ['id'])
+        const { accepted, result } = await splitOptimisticConflicts(
+            manager,
+            Cliente,
+            'clientes',
+            clientes,
+            (record) => String(record.numeroDocumento || record.razonSocialNombres || record.id || 'Cliente'),
+        );
+        if (accepted.length === 0) return result;
+        await manager.createQueryBuilder().insert().into(Cliente).values(accepted)
+            .orUpdate(['tipo_documento', 'numero_documento', 'razon_social_nombres', 'estado_civil', 'domicilio', 'telefono', 'updated_at', 'sync_status', 'version', 'base_version', 'updated_by_user_id', 'updated_by_device_mac'], ['id'])
             .execute();
+        return result;
     }
 
-    async upsertVehiculos(tx: EntityManager, vehiculos: Partial<Vehiculo>[]): Promise<void> {
-        if (!vehiculos || vehiculos.length === 0) return;
+    async upsertVehiculos(tx: EntityManager, vehiculos: Partial<Vehiculo>[]): Promise<SyncPushResult> {
+        if (!vehiculos || vehiculos.length === 0) return emptySyncPushResult();
         const manager = this.getManager(tx, this.defaultVehiculoRepo);
-        await manager.createQueryBuilder().insert().into(Vehiculo).values(vehiculos)
-            .orUpdate(['chasis_vin', 'placa', 'motor', 'marca', 'modelo', 'color', 'carroceria', 'categoria', 'anio_fabricacion', 'anio_modelo', 'updated_at', 'sync_status'], ['id'])
+        const { accepted, result } = await splitOptimisticConflicts(
+            manager,
+            Vehiculo,
+            'vehiculos',
+            vehiculos,
+            (record) => String(record.placa || record.chasisVin || record.id || 'Vehiculo'),
+        );
+        if (accepted.length === 0) return result;
+        await manager.createQueryBuilder().insert().into(Vehiculo).values(accepted)
+            .orUpdate(['chasis_vin', 'placa', 'motor', 'marca', 'modelo', 'color', 'carroceria', 'categoria', 'anio_fabricacion', 'anio_modelo', 'updated_at', 'sync_status', 'version', 'base_version', 'updated_by_user_id', 'updated_by_device_mac'], ['id'])
             .execute();
+        return result;
     }
 
     async upsertEmpresasGestoras(tx: EntityManager, empresas: Partial<EmpresaGestora>[]): Promise<void> {
