@@ -14,6 +14,8 @@ import {
   MAESTROS_SYNC_REPOSITORY_TOKEN,
 } from '../domain/ports/maestros-sync-repository.interface';
 import type { IMaestrosSyncRepository } from '../domain/ports/maestros-sync-repository.interface';
+import type { SyncPushResult } from '../domain/sync-push-result';
+import { mergeSyncPushResults } from '../domain/sync-push-result';
 
 @Injectable()
 export class MaestrosSyncService {
@@ -36,15 +38,17 @@ export class MaestrosSyncService {
       perfiles?: Partial<PerfilGestor>[];
       templates?: Partial<MessageTemplate>[];
     },
-  ): Promise<void> {
-    if (payload.clientes?.length) await this.maestrosSyncRepo.upsertClientes(tx, payload.clientes);
-    if (payload.vehiculos?.length) await this.maestrosSyncRepo.upsertVehiculos(tx, payload.vehiculos);
+  ): Promise<SyncPushResult> {
+    const results: SyncPushResult[] = [];
+    if (payload.clientes?.length) results.push(await this.maestrosSyncRepo.upsertClientes(tx, payload.clientes));
+    if (payload.vehiculos?.length) results.push(await this.maestrosSyncRepo.upsertVehiculos(tx, payload.vehiculos));
     if (payload.empresasGestoras?.length) await this.maestrosSyncRepo.upsertEmpresasGestoras(tx, payload.empresasGestoras);
     if (payload.plantillas?.length) await this.maestrosSyncRepo.upsertPlantillasDocumentos(tx, payload.plantillas);
     if (payload.presentantes?.length) await this.maestrosSyncRepo.upsertPresentantes(tx, payload.presentantes);
     if (payload.representantes?.length) await this.maestrosSyncRepo.upsertRepresentantesLegales(tx, payload.representantes);
     if (payload.perfiles?.length) await this.maestrosSyncRepo.upsertPerfilesGestor(tx, payload.perfiles);
     if (payload.templates?.length) await this.maestrosSyncRepo.upsertMessageTemplates(tx, payload.templates);
+    return mergeSyncPushResults(...results);
   }
 
   async pullClientes(cursorTimestamp: Date, lastId: string | undefined, limit: number): Promise<Cliente[]> {
