@@ -47,6 +47,7 @@ export class SyncOutboxService {
       ...input,
       status: 'PENDING',
       attempts: 0,
+      conflictCount: 0,
       queueJobId: null,
       lastError: null,
       queuedAt: null,
@@ -96,6 +97,20 @@ export class SyncOutboxService {
       { id },
       {
         status: 'COMPLETED',
+        conflictCount: 0,
+        completedAt: new Date(),
+        failedAt: null,
+        lastError: null,
+      },
+    );
+  }
+
+  async markCompletedWithConflicts(id: string, conflictCount: number): Promise<void> {
+    await this.outboxRepo.update(
+      { id },
+      {
+        status: 'COMPLETED_WITH_CONFLICTS',
+        conflictCount,
         completedAt: new Date(),
         failedAt: null,
         lastError: null,
@@ -124,6 +139,7 @@ export class SyncOutboxService {
       totalChunks: job.totalChunks,
       status: job.status,
       attempts: job.attempts,
+      conflictCount: job.conflictCount,
       queuedAt: job.queuedAt,
       processingStartedAt: job.processingStartedAt,
       completedAt: job.completedAt,
