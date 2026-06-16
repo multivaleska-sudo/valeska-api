@@ -12,7 +12,7 @@ import {
 } from '../../../tramites/entities/maestros.entity';
 import { PerfilGestor } from '../../../tramites/entities/perfil-gestor.entity';
 import { MessageTemplate } from '../../../tramites/entities/plantillas.entity';
-import type { SyncPushResult } from '../../domain/sync-push-result';
+import type { SyncPushResult, SyncWriteContext } from '../../domain/sync-push-result';
 import { emptySyncPushResult } from '../../domain/sync-push-result';
 import { splitOptimisticConflicts } from './optimistic-sync-utils';
 
@@ -48,7 +48,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
 
     // --- IMPLEMENTACIÓN DE ESCRITURAS TRANSACCIONALES POR LOTES (UPSERT) ---
 
-    async upsertClientes(tx: EntityManager, clientes: Partial<Cliente>[]): Promise<SyncPushResult> {
+    async upsertClientes(tx: EntityManager, clientes: Partial<Cliente>[], context?: SyncWriteContext): Promise<SyncPushResult> {
         if (!clientes || clientes.length === 0) return emptySyncPushResult();
         const manager = this.getManager(tx, this.defaultClienteRepo);
         const { accepted, result } = await splitOptimisticConflicts(
@@ -57,6 +57,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             'clientes',
             clientes,
             (record) => String(record.numeroDocumento || record.razonSocialNombres || record.id || 'Cliente'),
+            context,
         );
         if (accepted.length === 0) return result;
         await manager.createQueryBuilder().insert().into(Cliente).values(accepted)
@@ -65,7 +66,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         return result;
     }
 
-    async upsertVehiculos(tx: EntityManager, vehiculos: Partial<Vehiculo>[]): Promise<SyncPushResult> {
+    async upsertVehiculos(tx: EntityManager, vehiculos: Partial<Vehiculo>[], context?: SyncWriteContext): Promise<SyncPushResult> {
         if (!vehiculos || vehiculos.length === 0) return emptySyncPushResult();
         const manager = this.getManager(tx, this.defaultVehiculoRepo);
         const { accepted, result } = await splitOptimisticConflicts(
@@ -74,6 +75,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
             'vehiculos',
             vehiculos,
             (record) => String(record.placa || record.chasisVin || record.id || 'Vehiculo'),
+            context,
         );
         if (accepted.length === 0) return result;
         await manager.createQueryBuilder().insert().into(Vehiculo).values(accepted)
