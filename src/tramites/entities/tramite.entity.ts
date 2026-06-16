@@ -40,6 +40,10 @@ export class Tramite {
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
     @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
+    @Column({ type: 'int', default: 1 }) version!: number;
+    @Column({ name: 'base_version', type: 'int', default: 0 }) baseVersion!: number;
+    @Column({ name: 'updated_by_user_id', type: 'uuid', nullable: true }) updatedByUserId!: string | null;
+    @Column({ name: 'updated_by_device_mac', type: 'varchar', nullable: true }) updatedByDeviceMac!: string | null;
 }
 
 @Entity('tramite_detalles')
@@ -78,4 +82,8 @@ export class TramiteDetalle {
     @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
     @DeleteDateColumn({ name: 'deleted_at', nullable: true }) deletedAt!: Date | null;
     @Column({ name: 'sync_status', default: 'SYNCED' }) syncStatus!: string;
+    @Column({ type: 'int', default: 1 }) version!: number;
+    @Column({ name: 'base_version', type: 'int', default: 0 }) baseVersion!: number;
+    @Column({ name: 'updated_by_user_id', type: 'uuid', nullable: true }) updatedByUserId!: string | null;
+    @Column({ name: 'updated_by_device_mac', type: 'varchar', nullable: true }) updatedByDeviceMac!: string | null;
 }
