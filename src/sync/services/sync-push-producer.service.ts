@@ -33,7 +33,7 @@ export class SyncPushProducerService {
           chunkIndex: dto.chunkIndex,
         });
 
-        if (existing?.status === 'COMPLETED') {
+        if (existing && ['COMPLETED', 'COMPLETED_WITH_CONFLICTS'].includes(existing.status)) {
           return {
             accepted: true,
             jobId: existing.queueJobId,
@@ -91,7 +91,8 @@ export class SyncPushProducerService {
 
   async getStatus(outboxId: string, user: AuthenticatedUser) {
     const outbox = await this.outboxService.findById(outboxId);
-    if (outbox.userId !== user.sub && user.rol !== 'ADMIN') {
+    const canReadAnyJob = ['ADMIN', 'ADMIN_CENTRAL'].includes(user.rol);
+    if (outbox.userId !== user.sub && !canReadAnyJob) {
       throw new ForbiddenException('No autorizado para consultar este job de sincronizacion');
     }
 
