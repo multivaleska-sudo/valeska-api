@@ -22,6 +22,7 @@ describe('SyncPushProcessor', () => {
     findById: jest.fn().mockResolvedValue(outbox),
     markProcessing: jest.fn(),
     markCompleted: jest.fn(),
+    markCompletedWithConflicts: jest.fn(),
     markFailed: jest.fn(),
   };
   const syncServiceMock = {
@@ -47,6 +48,12 @@ describe('SyncPushProcessor', () => {
   });
 
   it('marks job as completed after processing', async () => {
+    syncServiceMock.processPushChunkNow.mockResolvedValueOnce({
+      success: true,
+      processedRecords: 1,
+      conflictCount: 0,
+    });
+
     await processor.process({
       data: { outboxId: 'outbox-id' },
       attemptsMade: 0,
@@ -55,6 +62,40 @@ describe('SyncPushProcessor', () => {
 
     expect(syncServiceMock.processPushChunkNow).toHaveBeenCalled();
     expect(outboxServiceMock.markCompleted).toHaveBeenCalledWith('outbox-id');
+  });
+
+  it('marks job as completed with conflicts when optimistic conflicts are detected', async () => {
+    syncServiceMock.processPushChunkNow.mockResolvedValueOnce({
+      success: true,
+      processedRecords: 1,
+      conflictCount: 1,
+    });
+
+    await processor.process({
+      data: { outboxId: 'outbox-id' },
+      attemptsMade: 0,
+      opts: { attempts: 5 },
+    } as never);
+
+    expect(outboxServiceMock.markCompletedWithConflicts).toHaveBeenCalledWith('outbox-id', 1);
+    expect(outboxServiceMock.markCompleted).not.toHaveBeenCalled();
+    expect(observabilityMock.incrementSyncPushJob).toHaveBeenCalledWith('cliente', 'COMPLETED_WITH_CONFLICTS');
+  });
+
+  it('does not reprocess jobs already completed with conflicts', async () => {
+    outboxServiceMock.findById.mockResolvedValueOnce({
+      ...outbox,
+      status: 'COMPLETED_WITH_CONFLICTS',
+    });
+
+    await processor.process({
+      data: { outboxId: 'outbox-id' },
+      attemptsMade: 0,
+      opts: { attempts: 5 },
+    } as never);
+
+    expect(syncServiceMock.processPushChunkNow).not.toHaveBeenCalled();
+    expect(outboxServiceMock.markProcessing).not.toHaveBeenCalled();
   });
 
   it('marks dead letter on final failure', async () => {
