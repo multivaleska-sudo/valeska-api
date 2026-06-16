@@ -4,6 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { ResetCode } from './entities/reset-code.entity';
+import { Dispositivo } from '../sync/entities/dispositivo.entity';
+import { Sucursal } from '../sync/entities/sucursal.entity';
 import { Usuario } from '../sync/entities/usuario.entity';
 
 describe('AuthService', () => {
@@ -22,6 +24,8 @@ describe('AuthService', () => {
         AuthService,
         { provide: getRepositoryToken(Usuario), useValue: repositoryMock },
         { provide: getRepositoryToken(ResetCode), useValue: repositoryMock },
+        { provide: getRepositoryToken(Dispositivo), useValue: repositoryMock },
+        { provide: getRepositoryToken(Sucursal), useValue: repositoryMock },
         { provide: JwtService, useValue: { sign: jest.fn(() => 'token') } },
         { provide: ConfigService, useValue: { get: jest.fn((_: string, fallback?: string) => fallback ?? '10') } },
       ],
