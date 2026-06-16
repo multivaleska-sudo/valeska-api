@@ -15,6 +15,7 @@ import { SeguridadSyncService } from './services/seguridad-sync.service';
 import { ConflictosSyncService } from './services/conflictos-sync.service';
 import { SyncOutboxService } from './services/sync-outbox.service';
 import { SyncPushProducerService } from './services/sync-push-producer.service';
+import { SyncHealthService } from './services/sync-health.service';
 import { Usuario } from './entities/usuario.entity';
 import { Dispositivo } from './entities/dispositivo.entity';
 import { Sucursal } from './entities/sucursal.entity';
@@ -89,6 +90,7 @@ import { TypeOrmConflictosSyncAdapter } from './infrastructure/adapters/typeorm-
     ConflictosSyncService,
     SyncOutboxService,
     SyncPushProducerService,
+    SyncHealthService,
     SyncPushProcessor,
     {
       provide: SEGURIDAD_SYNC_REPOSITORY_TOKEN,
