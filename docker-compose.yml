@@ -23,7 +23,7 @@ services:
     networks:
       - valeska_shared_net
     volumes:
-      - ./storage:/usr/src/app/storage
+      - ./storage:/app/storage
 
   redis:
     image: redis:7-alpine
