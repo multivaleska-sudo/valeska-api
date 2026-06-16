@@ -3,6 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager, Brackets } from 'typeorm';
 import { ITramitesSyncRepository } from '../../domain/ports/tramites-sync-repository.interface';
 import { Tramite, TramiteDetalle } from '../../../tramites/entities/tramite.entity';
+import type { SyncPushResult } from '../../domain/sync-push-result';
+import { emptySyncPushResult } from '../../domain/sync-push-result';
+import { splitOptimisticConflicts } from './optimistic-sync-utils';
 
 /**
  * Adaptador concreto para la persistencia transaccional y lectura indexada de Trámites.
@@ -20,16 +23,24 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
         return (tx as EntityManager) || this.defaultTramiteRepo.manager;
     }
 
-    async upsertTramites(tx: EntityManager, tramites: Partial<Tramite>[]): Promise<void> {
-        if (!tramites || tramites.length === 0) return;
+    async upsertTramites(tx: EntityManager, tramites: Partial<Tramite>[]): Promise<SyncPushResult> {
+        if (!tramites || tramites.length === 0) return emptySyncPushResult();
         const manager = this.getManager(tx);
+        const { accepted, result } = await splitOptimisticConflicts(
+            manager,
+            Tramite,
+            'tramites',
+            tramites,
+            (record) => String(record.nTitulo || record.codigoVerificacion || record.id || 'Tramite'),
+        );
+        if (accepted.length === 0) return result;
 
         // Ejecuta UPSERT masivo atómico en PostgreSQL
         await manager
             .createQueryBuilder()
             .insert()
             .into(Tramite)
-            .values(tramites)
+            .values(accepted)
             .orUpdate(
                 [
                     'codigo_verificacion',
@@ -55,21 +66,34 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
                     'observacion_placa',
                     'updated_at',
                     'sync_status',
+                    'version',
+                    'base_version',
+                    'updated_by_user_id',
+                    'updated_by_device_mac',
                 ],
                 ['id'],
             )
             .execute();
+        return result;
     }
 
-    async upsertTramiteDetalles(tx: EntityManager, detalles: Partial<TramiteDetalle>[]): Promise<void> {
-        if (!detalles || detalles.length === 0) return;
+    async upsertTramiteDetalles(tx: EntityManager, detalles: Partial<TramiteDetalle>[]): Promise<SyncPushResult> {
+        if (!detalles || detalles.length === 0) return emptySyncPushResult();
         const manager = this.getManager(tx);
+        const { accepted, result } = await splitOptimisticConflicts(
+            manager,
+            TramiteDetalle,
+            'tramite_detalles',
+            detalles,
+            (record) => String(record.tramiteId || record.id || 'Detalle de tramite'),
+        );
+        if (accepted.length === 0) return result;
 
         await manager
             .createQueryBuilder()
             .insert()
             .into(TramiteDetalle)
-            .values(detalles)
+            .values(accepted)
             .orUpdate(
                 [
                     'tramite_id',
@@ -89,10 +113,15 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
                     'aclaracion_debe_decir',
                     'updated_at',
                     'sync_status',
+                    'version',
+                    'base_version',
+                    'updated_by_user_id',
+                    'updated_by_device_mac',
                 ],
                 ['id'],
             )
             .execute();
+        return result;
     }
 
     async fetchTramitesCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<Tramite[]> {
