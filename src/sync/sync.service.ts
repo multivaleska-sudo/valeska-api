@@ -29,14 +29,14 @@ import { Dispositivo } from './entities/dispositivo.entity';
 import { Sucursal } from './entities/sucursal.entity';
 import { SyncConflicto } from './entities/sync-conflict.entity';
 import { Usuario } from './entities/usuario.entity';
-import type { SyncPushResult } from './domain/sync-push-result';
+import type { SyncPushResult, SyncWriteContext } from './domain/sync-push-result';
 import { emptySyncPushResult } from './domain/sync-push-result';
 
 type SyncRecord = Record<string, unknown>;
 type CursorRecord = { id: string; updatedAt?: Date; fechaConflicto?: Date };
 
 interface SyncHandler<TRecord extends CursorRecord = CursorRecord> {
-  push: (tx: EntityManager, records: SyncRecord[]) => Promise<SyncPushResult | void>;
+  push: (tx: EntityManager, records: SyncRecord[], context: SyncWriteContext) => Promise<SyncPushResult | void>;
   pull: (cursorTimestamp: Date, lastId: string | undefined, limit: number) => Promise<TRecord[]>;
   cursorTimestamp: (record: TRecord) => Date;
 }
@@ -66,6 +66,10 @@ export class SyncService {
   async processPushChunkNow(userId: string, macAddress: string, dto: PushSyncChunkDto) {
     await this.validateOperatorDevice(userId, macAddress);
 
+    if (dto.syncProtocolVersion !== 2) {
+      throw new BadRequestException('syncProtocolVersion 2 es requerido para subir cambios sin perdida de datos');
+    }
+
     const entityName = dto.entityName.toLowerCase();
     if (!isSyncEntityName(entityName)) {
       throw new BadRequestException(`La entidad '${dto.entityName}' no es reconocida por el sincronizador`);
@@ -83,7 +87,11 @@ export class SyncService {
     );
 
     const result = await this.dataSource.transaction(async (manager) => {
-      return this.handlers[entityName].push(manager, records);
+      return this.handlers[entityName].push(manager, records, {
+        userId,
+        deviceMac: macAddress.trim().toLowerCase(),
+        outboxId: dto.outboxId ?? null,
+      });
     });
     const pushResult = result ?? emptySyncPushResult();
 
@@ -94,6 +102,9 @@ export class SyncService {
       chunkIndex: dto.chunkIndex,
       processedRecords: processedCount,
       conflictCount: pushResult.conflictCount,
+      acceptedRecordIds: pushResult.acceptedRecordIds,
+      conflictedRecordIds: pushResult.conflictedRecordIds,
+      conflictIds: pushResult.conflictIds,
     };
   }
 
@@ -149,12 +160,12 @@ export class SyncService {
 
     return {
       tramite: {
-        push: (tx, records) => this.tramitesSync.push(tx, { tramites: records as Partial<Tramite>[] }),
+        push: (tx, records, context) => this.tramitesSync.push(tx, { tramites: records as Partial<Tramite>[] }, context),
         pull: (cursor, lastId, limit) => this.tramitesSync.pullTramites(cursor, lastId, limit),
         cursorTimestamp: updatedAt,
       },
       tramite_detalle: {
-        push: (tx, records) => this.tramitesSync.push(tx, { tramiteDetalles: records as Partial<TramiteDetalle>[] }),
+        push: (tx, records, context) => this.tramitesSync.push(tx, { tramiteDetalles: records as Partial<TramiteDetalle>[] }, context),
         pull: (cursor, lastId, limit) => this.tramitesSync.pullTramiteDetalles(cursor, lastId, limit),
         cursorTimestamp: updatedAt,
       },
@@ -169,12 +180,12 @@ export class SyncService {
         cursorTimestamp: updatedAt,
       },
       cliente: {
-        push: (tx, records) => this.maestrosSync.push(tx, { clientes: records as Partial<Cliente>[] }),
+        push: (tx, records, context) => this.maestrosSync.push(tx, { clientes: records as Partial<Cliente>[] }, context),
         pull: (cursor, lastId, limit) => this.maestrosSync.pullClientes(cursor, lastId, limit),
         cursorTimestamp: updatedAt,
       },
       vehiculo: {
-        push: (tx, records) => this.maestrosSync.push(tx, { vehiculos: records as Partial<Vehiculo>[] }),
+        push: (tx, records, context) => this.maestrosSync.push(tx, { vehiculos: records as Partial<Vehiculo>[] }, context),
         pull: (cursor, lastId, limit) => this.maestrosSync.pullVehiculos(cursor, lastId, limit),
         cursorTimestamp: updatedAt,
       },
