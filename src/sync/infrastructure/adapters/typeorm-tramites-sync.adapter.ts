@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager, Brackets } from 'typeorm';
 import { ITramitesSyncRepository } from '../../domain/ports/tramites-sync-repository.interface';
 import { Tramite, TramiteDetalle } from '../../../tramites/entities/tramite.entity';
-import type { SyncPushResult } from '../../domain/sync-push-result';
+import type { SyncPushResult, SyncWriteContext } from '../../domain/sync-push-result';
 import { emptySyncPushResult } from '../../domain/sync-push-result';
 import { splitOptimisticConflicts } from './optimistic-sync-utils';
 
@@ -23,7 +23,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
         return (tx as EntityManager) || this.defaultTramiteRepo.manager;
     }
 
-    async upsertTramites(tx: EntityManager, tramites: Partial<Tramite>[]): Promise<SyncPushResult> {
+    async upsertTramites(tx: EntityManager, tramites: Partial<Tramite>[], context: SyncWriteContext): Promise<SyncPushResult> {
         if (!tramites || tramites.length === 0) return emptySyncPushResult();
         const manager = this.getManager(tx);
         const { accepted, result } = await splitOptimisticConflicts(
@@ -32,6 +32,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
             'tramites',
             tramites,
             (record) => String(record.nTitulo || record.codigoVerificacion || record.id || 'Tramite'),
+            context,
         );
         if (accepted.length === 0) return result;
 
@@ -77,7 +78,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
         return result;
     }
 
-    async upsertTramiteDetalles(tx: EntityManager, detalles: Partial<TramiteDetalle>[]): Promise<SyncPushResult> {
+    async upsertTramiteDetalles(tx: EntityManager, detalles: Partial<TramiteDetalle>[], context: SyncWriteContext): Promise<SyncPushResult> {
         if (!detalles || detalles.length === 0) return emptySyncPushResult();
         const manager = this.getManager(tx);
         const { accepted, result } = await splitOptimisticConflicts(
@@ -86,6 +87,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
             'tramite_detalles',
             detalles,
             (record) => String(record.tramiteId || record.id || 'Detalle de tramite'),
+            context,
         );
         if (accepted.length === 0) return result;
 
