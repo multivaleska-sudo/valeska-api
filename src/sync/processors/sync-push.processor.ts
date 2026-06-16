@@ -38,6 +38,8 @@ export class SyncPushProcessor extends WorkerHost {
         await this.outboxService.markProcessing(outbox.id, job.attemptsMade + 1);
 
         const dto: PushSyncChunkDto = {
+          syncProtocolVersion: 2,
+          outboxId: outbox.id,
           syncSessionId: outbox.syncSessionId,
           entityName: outbox.entityName,
           chunkIndex: outbox.chunkIndex,
@@ -47,10 +49,10 @@ export class SyncPushProcessor extends WorkerHost {
 
         const result = await this.syncService.processPushChunkNow(outbox.userId, outbox.macAddress, dto);
         if (result.conflictCount > 0) {
-          await this.outboxService.markCompletedWithConflicts(outbox.id, result.conflictCount);
+          await this.outboxService.markCompletedWithConflicts(outbox.id, result);
           this.observability.incrementSyncPushJob(outbox.entityName, 'COMPLETED_WITH_CONFLICTS');
         } else {
-          await this.outboxService.markCompleted(outbox.id);
+          await this.outboxService.markCompleted(outbox.id, result);
           this.observability.incrementSyncPushJob(outbox.entityName, 'COMPLETED');
         }
       } catch (error) {
