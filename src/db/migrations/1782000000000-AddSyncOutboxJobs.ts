@@ -20,6 +20,7 @@ export class AddSyncOutboxJobs1782000000000 implements MigrationInterface {
         "status" character varying NOT NULL DEFAULT 'PENDING',
         "queue_job_id" character varying,
         "attempts" integer NOT NULL DEFAULT 0,
+        "conflict_count" integer NOT NULL DEFAULT 0,
         "last_error" text,
         "queued_at" TIMESTAMP,
         "processing_started_at" TIMESTAMP,
