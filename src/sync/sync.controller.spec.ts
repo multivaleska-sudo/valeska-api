@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { SyncController } from './sync.controller';
 import { SyncService } from './sync.service';
 import { SyncPushProducerService } from './services/sync-push-producer.service';
+import { SyncHealthService } from './services/sync-health.service';
 
 describe('SyncController', () => {
   let controller: SyncController;
@@ -23,6 +24,12 @@ describe('SyncController', () => {
           useValue: {
             enqueue: jest.fn(),
             getStatus: jest.fn(),
+          },
+        },
+        {
+          provide: SyncHealthService,
+          useValue: {
+            getHealthSummary: jest.fn(),
           },
         },
         { provide: JwtService, useValue: { verifyAsync: jest.fn() } },
