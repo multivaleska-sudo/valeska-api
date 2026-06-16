@@ -14,6 +14,7 @@ describe('SyncPushProducerService', () => {
     entityName: 'cliente',
     chunkIndex: 0,
     status: 'QUEUED',
+    conflictCount: 0,
   };
 
   const queueMock = {
@@ -22,8 +23,13 @@ describe('SyncPushProducerService', () => {
   };
   const outboxServiceMock = {
     findByNaturalKey: jest.fn(),
+    findById: jest.fn(),
     createPending: jest.fn().mockResolvedValue(outbox),
     markQueued: jest.fn().mockResolvedValue(outbox),
+    toStatusResponse: jest.fn().mockImplementation((job) => ({
+      outboxId: job.id,
+      status: job.status,
+    })),
   };
   const observabilityMock = {
     setSyncPushQueueCounts: jest.fn(),
@@ -77,5 +83,38 @@ describe('SyncPushProducerService', () => {
     });
 
     expect(queueMock.add).not.toHaveBeenCalled();
+  });
+
+  it('returns completed-with-conflicts duplicate without enqueueing again', async () => {
+    outboxServiceMock.findByNaturalKey.mockResolvedValueOnce({ ...outbox, status: 'COMPLETED_WITH_CONFLICTS' });
+
+    await expect(service.enqueue('user-id', 'AA:BB', {
+      syncSessionId: outbox.syncSessionId,
+      entityName: 'cliente',
+      chunkIndex: 0,
+      totalChunks: 1,
+      records: [{ id: '1' }],
+    })).resolves.toMatchObject({
+      accepted: true,
+      status: 'COMPLETED_WITH_CONFLICTS',
+    });
+
+    expect(queueMock.add).not.toHaveBeenCalled();
+  });
+
+  it('allows ADMIN_CENTRAL to read another user sync job status', async () => {
+    outboxServiceMock.findById.mockResolvedValueOnce({
+      ...outbox,
+      userId: 'operator-user',
+    });
+
+    await expect(service.getStatus('outbox-id', {
+      sub: 'central-admin',
+      username: 'admin@valeska.local',
+      rol: 'ADMIN_CENTRAL',
+    })).resolves.toMatchObject({
+      outboxId: 'outbox-id',
+      status: 'QUEUED',
+    });
   });
 });
