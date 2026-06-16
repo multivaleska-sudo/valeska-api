@@ -9,6 +9,7 @@ import {
 } from '../../../tramites/entities/maestros.entity';
 import { PerfilGestor } from '../../../tramites/entities/perfil-gestor.entity';
 import { MessageTemplate } from '../../../tramites/entities/plantillas.entity';
+import type { SyncPushResult } from '../sync-push-result';
 
 export const MAESTROS_SYNC_REPOSITORY_TOKEN = Symbol('IMaestrosSyncRepository');
 
@@ -17,8 +18,8 @@ export const MAESTROS_SYNC_REPOSITORY_TOKEN = Symbol('IMaestrosSyncRepository');
  */
 export interface IMaestrosSyncRepository {
     // --- MÉTODOS DE ESCRITURA POR LOTES (UPSERT) ---
-    upsertClientes(tx: EntityManager, clientes: Partial<Cliente>[]): Promise<void>;
-    upsertVehiculos(tx: EntityManager, vehiculos: Partial<Vehiculo>[]): Promise<void>;
+    upsertClientes(tx: EntityManager, clientes: Partial<Cliente>[]): Promise<SyncPushResult>;
+    upsertVehiculos(tx: EntityManager, vehiculos: Partial<Vehiculo>[]): Promise<SyncPushResult>;
     upsertEmpresasGestoras(tx: EntityManager, empresas: Partial<EmpresaGestora>[]): Promise<void>;
     upsertPlantillasDocumentos(tx: EntityManager, plantillas: Partial<PlantillaDocumento>[]): Promise<void>;
     upsertPresentantes(tx: EntityManager, presentantes: Partial<Presentante>[]): Promise<void>;
