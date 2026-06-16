@@ -29,12 +29,14 @@ import { Dispositivo } from './entities/dispositivo.entity';
 import { Sucursal } from './entities/sucursal.entity';
 import { SyncConflicto } from './entities/sync-conflict.entity';
 import { Usuario } from './entities/usuario.entity';
+import type { SyncPushResult } from './domain/sync-push-result';
+import { emptySyncPushResult } from './domain/sync-push-result';
 
 type SyncRecord = Record<string, unknown>;
 type CursorRecord = { id: string; updatedAt?: Date; fechaConflicto?: Date };
 
 interface SyncHandler<TRecord extends CursorRecord = CursorRecord> {
-  push: (tx: EntityManager, records: SyncRecord[]) => Promise<void>;
+  push: (tx: EntityManager, records: SyncRecord[]) => Promise<SyncPushResult | void>;
   pull: (cursorTimestamp: Date, lastId: string | undefined, limit: number) => Promise<TRecord[]>;
   cursorTimestamp: (record: TRecord) => Date;
 }
@@ -72,15 +74,18 @@ export class SyncService {
     const records = dto.records.map((record) => ({
       ...record,
       syncStatus: 'SYNCED',
+      updatedByUserId: record.updatedByUserId ?? userId,
+      updatedByDeviceMac: record.updatedByDeviceMac ?? macAddress.trim().toLowerCase(),
     }));
     const processedCount = records.length;
     this.logger.log(
       `[PUSH CHUNK] Sesion: ${dto.syncSessionId} | Entidad: ${entityName} | Chunk: ${dto.chunkIndex + 1}/${dto.totalChunks} | Lote: ${processedCount}`,
     );
 
-    await this.dataSource.transaction(async (manager) => {
-      await this.handlers[entityName].push(manager, records);
+    const result = await this.dataSource.transaction(async (manager) => {
+      return this.handlers[entityName].push(manager, records);
     });
+    const pushResult = result ?? emptySyncPushResult();
 
     return {
       success: true,
@@ -88,6 +93,7 @@ export class SyncService {
       entityName,
       chunkIndex: dto.chunkIndex,
       processedRecords: processedCount,
+      conflictCount: pushResult.conflictCount,
     };
   }
 
