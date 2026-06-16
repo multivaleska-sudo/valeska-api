@@ -31,7 +31,7 @@ export class SyncPushProcessor extends WorkerHost {
       const stopTimer = this.observability.startSyncPushTimer(outbox.entityName);
 
       try {
-        if (outbox.status === 'COMPLETED') {
+        if (['COMPLETED', 'COMPLETED_WITH_CONFLICTS'].includes(outbox.status)) {
           return;
         }
 
@@ -45,9 +45,14 @@ export class SyncPushProcessor extends WorkerHost {
           records: outbox.payload,
         };
 
-        await this.syncService.processPushChunkNow(outbox.userId, outbox.macAddress, dto);
-        await this.outboxService.markCompleted(outbox.id);
-        this.observability.incrementSyncPushJob(outbox.entityName, 'COMPLETED');
+        const result = await this.syncService.processPushChunkNow(outbox.userId, outbox.macAddress, dto);
+        if (result.conflictCount > 0) {
+          await this.outboxService.markCompletedWithConflicts(outbox.id, result.conflictCount);
+          this.observability.incrementSyncPushJob(outbox.entityName, 'COMPLETED_WITH_CONFLICTS');
+        } else {
+          await this.outboxService.markCompleted(outbox.id);
+          this.observability.incrementSyncPushJob(outbox.entityName, 'COMPLETED');
+        }
       } catch (error) {
         const isLastAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
         const status = isLastAttempt ? 'DEAD_LETTER' : 'FAILED';
