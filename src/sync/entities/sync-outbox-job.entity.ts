@@ -13,6 +13,7 @@ export const SYNC_OUTBOX_STATUSES = [
   'QUEUED',
   'PROCESSING',
   'COMPLETED',
+  'COMPLETED_WITH_CONFLICTS',
   'FAILED',
   'DEAD_LETTER',
 ] as const;
@@ -58,6 +59,9 @@ export class SyncOutboxJob {
 
   @Column({ type: 'int', default: 0 })
   attempts!: number;
+
+  @Column({ name: 'conflict_count', type: 'int', default: 0 })
+  conflictCount!: number;
 
   @Column({ name: 'last_error', type: 'text', nullable: true })
   lastError!: string | null;
