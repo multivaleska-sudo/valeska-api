@@ -11,6 +11,7 @@ export interface VersionedSyncRecord {
   baseVersion?: number | null;
   updatedByUserId?: string | null;
   updatedByDeviceMac?: string | null;
+  updatedAt?: Date | string | null;
 }
 
 export async function splitOptimisticConflicts<T extends VersionedSyncRecord>(
@@ -41,13 +42,20 @@ export async function splitOptimisticConflicts<T extends VersionedSyncRecord>(
   const conflictedRecordIds: string[] = [];
   const conflictIds: string[] = [];
 
+  const openConflicts = await manager
+    .getRepository(SyncConflicto)
+    .createQueryBuilder('c')
+    .where('c.tablaAfectada = :tableName AND c.registroId IN (:...ids) AND c.resuelto = false', { tableName, ids })
+    .getMany();
+  const openConflictsById = new Map(openConflicts.map((c: any) => [c.registroId, c.id]));
+
   for (const record of records) {
     const existing = existingById.get(record.id);
     const baseVersion = Number(record.baseVersion ?? 0);
     const serverVersion = Number(existing?.version ?? 0);
 
     if (existing && baseVersion !== serverVersion) {
-      const conflictId = randomUUID();
+      const conflictId = openConflictsById.get(record.id!) ?? randomUUID();
       conflicts.push({
         id: conflictId,
         tablaAfectada: tableName,
@@ -68,7 +76,10 @@ export async function splitOptimisticConflicts<T extends VersionedSyncRecord>(
       ...record,
       version: existing ? serverVersion + 1 : 1,
       baseVersion: existing ? serverVersion : 0,
+      updatedAt: new Date(),
     };
+    if (context?.userId) acceptedRecord.updatedByUserId = context.userId;
+    if (context?.deviceMac) acceptedRecord.updatedByDeviceMac = context.deviceMac;
     accepted.push(acceptedRecord);
     acceptedRecordIds.push(record.id!);
     changeLogs.push(buildChangeLog(
@@ -82,7 +93,7 @@ export async function splitOptimisticConflicts<T extends VersionedSyncRecord>(
   }
 
   if (conflicts.length > 0) {
-    await manager.insert(SyncConflicto, conflicts);
+    await manager.save(SyncConflicto, conflicts);
   }
 
   if (changeLogs.length > 0) {
