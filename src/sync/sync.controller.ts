@@ -23,6 +23,9 @@ import { SyncService } from './sync.service';
 import { SyncPushProducerService } from './services/sync-push-producer.service';
 import { SyncHealthService } from './services/sync-health.service';
 
+import { ResolveSyncConflictDto } from './infrastructure/http/dtos/conflicts/resolve-sync-conflict.dto';
+import { SyncConflictResolutionService } from './services/sync-conflict-resolution.service';
+
 type AuthenticatedRequest = Request & { user: AuthenticatedUser };
 
 @Controller('sync')
@@ -33,7 +36,21 @@ export class SyncController {
     private readonly syncService: SyncService,
     private readonly syncPushProducer: SyncPushProducerService,
     private readonly syncHealthService: SyncHealthService,
-  ) {}
+    private readonly conflictResolution: SyncConflictResolutionService,
+  ) { }
+
+  @Post('conflicts/:conflictId/resolve')
+  async resolveConflict(
+    @Req() request: AuthenticatedRequest,
+    @Headers('x-device-mac') macAddress: string,
+    @Param('conflictId') conflictId: string,
+    @Body() body: ResolveSyncConflictDto,
+  ) {
+    if (!macAddress) {
+      throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la resolucion.');
+    }
+    return this.conflictResolution.resolve(request.user.sub, macAddress, conflictId, body);
+  }
 
   @Post('push')
   @HttpCode(HttpStatus.ACCEPTED)
