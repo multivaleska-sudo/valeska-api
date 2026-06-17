@@ -63,6 +63,22 @@ export class SyncService {
     return this.processPushChunkNow(userId, macAddress, dto);
   }
 
+  async processPushChunkWithTx(manager: EntityManager, userId: string, macAddress: string, dto: PushSyncChunkDto) {
+    const entityName = dto.entityName.toLowerCase();
+    const records = dto.records.map((record) => ({
+      ...record,
+      syncStatus: 'SYNCED',
+      updatedByUserId: record.updatedByUserId ?? userId,
+      updatedByDeviceMac: record.updatedByDeviceMac ?? macAddress.trim().toLowerCase(),
+    }));
+    
+    return this.handlers[entityName].push(manager, records, {
+      userId,
+      deviceMac: macAddress.trim().toLowerCase(),
+      outboxId: dto.outboxId ?? null,
+    });
+  }
+
   async processPushChunkNow(userId: string, macAddress: string, dto: PushSyncChunkDto) {
     await this.validateOperatorDevice(userId, macAddress);
 
