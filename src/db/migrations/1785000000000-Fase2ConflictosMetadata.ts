@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class Fase2ConflictosMetadata1720000000000 implements MigrationInterface {
+export class Fase2ConflictosMetadata1785000000000 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
       ALTER TABLE sync_conflictos
