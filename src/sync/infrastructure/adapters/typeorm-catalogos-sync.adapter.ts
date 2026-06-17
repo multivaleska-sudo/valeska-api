@@ -4,6 +4,23 @@ import { Repository, EntityManager, Brackets } from 'typeorm';
 import { ICatalogosSyncRepository } from '../../domain/ports/catalogos-sync-repository.interface';
 import { CatalogoTipoTramite, CatalogoSituacion } from '../../../tramites/entities/catalogos.entity';
 
+export const CATALOGO_TIPO_TRAMITE_UPSERT_COLUMNS = [
+    'nombre',
+    'activo',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
+export const CATALOGO_SITUACION_UPSERT_COLUMNS = [
+    'nombre',
+    'color_hex',
+    'activo',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
 /**
  * Adaptador concreto para la persistencia transaccional y lectura indexada de Catálogos.
  */
@@ -29,7 +46,7 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
             .insert()
             .into(CatalogoTipoTramite)
             .values(tipos)
-            .orUpdate(['nombre', 'activo', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(CATALOGO_TIPO_TRAMITE_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
@@ -42,7 +59,7 @@ export class TypeOrmCatalogosSyncAdapter implements ICatalogosSyncRepository {
             .insert()
             .into(CatalogoSituacion)
             .values(situaciones)
-            .orUpdate(['nombre', 'color_hex', 'activo', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(CATALOGO_SITUACION_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
