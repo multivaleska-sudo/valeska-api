@@ -7,6 +7,62 @@ import type { SyncPushResult, SyncWriteContext } from '../../domain/sync-push-re
 import { emptySyncPushResult } from '../../domain/sync-push-result';
 import { splitOptimisticConflicts } from './optimistic-sync-utils';
 
+export const TRAMITE_UPSERT_COLUMNS = [
+    'codigo_verificacion',
+    'tramite_anio',
+    'cliente_id',
+    'vehiculo_id',
+    'tipo_tramite_id',
+    'situacion_id',
+    'n_titulo',
+    'n_formato',
+    'fecha_presentacion',
+    'observaciones_generales',
+    'tarjeta_en_oficina',
+    'fecha_tarjeta_en_oficina',
+    'placa_en_oficina',
+    'fecha_placa_en_oficina',
+    'entrego_tarjeta',
+    'fecha_entrega_tarjeta',
+    'metodo_entrega_tarjeta',
+    'entrego_placa',
+    'fecha_entrega_placa',
+    'metodo_entrega_placa',
+    'observacion_placa',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+    'version',
+    'base_version',
+    'updated_by_user_id',
+    'updated_by_device_mac',
+];
+
+export const TRAMITE_DETALLE_UPSERT_COLUMNS = [
+    'tramite_id',
+    'empresa_gestora_id',
+    'representante_legal_id',
+    'presentante_id',
+    'tipo_boleta',
+    'numero_boleta',
+    'fecha_boleta',
+    'dua',
+    'num_formato_inmatriculacion',
+    'numero_recibo_tramite',
+    'clausula_monto',
+    'clausula_forma_pago',
+    'clausula_pago_bancarizado',
+    'aclaracion_dice',
+    'aclaracion_debe_decir',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+    'version',
+    'base_version',
+    'updated_by_user_id',
+    'updated_by_device_mac',
+];
+
 /**
  * Adaptador concreto para la persistencia transaccional y lectura indexada de Trámites.
  */
@@ -43,35 +99,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
             .into(Tramite)
             .values(accepted)
             .orUpdate(
-                [
-                    'codigo_verificacion',
-                    'tramite_anio',
-                    'cliente_id',
-                    'vehiculo_id',
-                    'tipo_tramite_id',
-                    'situacion_id',
-                    'n_titulo',
-                    'n_formato',
-                    'fecha_presentacion',
-                    'observaciones_generales',
-                    'tarjeta_en_oficina',
-                    'fecha_tarjeta_en_oficina',
-                    'placa_en_oficina',
-                    'fecha_placa_en_oficina',
-                    'entrego_tarjeta',
-                    'fecha_entrega_tarjeta',
-                    'metodo_entrega_tarjeta',
-                    'entrego_placa',
-                    'fecha_entrega_placa',
-                    'metodo_entrega_placa',
-                    'observacion_placa',
-                    'updated_at',
-                    'sync_status',
-                    'version',
-                    'base_version',
-                    'updated_by_user_id',
-                    'updated_by_device_mac',
-                ],
+                TRAMITE_UPSERT_COLUMNS,
                 ['id'],
             )
             .execute();
@@ -97,29 +125,7 @@ export class TypeOrmTramitesSyncAdapter implements ITramitesSyncRepository {
             .into(TramiteDetalle)
             .values(accepted)
             .orUpdate(
-                [
-                    'tramite_id',
-                    'empresa_gestora_id',
-                    'representante_legal_id',
-                    'presentante_id',
-                    'tipo_boleta',
-                    'numero_boleta',
-                    'fecha_boleta',
-                    'dua',
-                    'num_formato_inmatriculacion',
-                    'numero_recibo_tramite',
-                    'clausula_monto',
-                    'clausula_forma_pago',
-                    'clausula_pago_bancarizado',
-                    'aclaracion_dice',
-                    'aclaracion_debe_decir',
-                    'updated_at',
-                    'sync_status',
-                    'version',
-                    'base_version',
-                    'updated_by_user_id',
-                    'updated_by_device_mac',
-                ],
+                TRAMITE_DETALLE_UPSERT_COLUMNS,
                 ['id'],
             )
             .execute();
