@@ -16,6 +16,103 @@ import type { SyncPushResult, SyncWriteContext } from '../../domain/sync-push-re
 import { emptySyncPushResult } from '../../domain/sync-push-result';
 import { splitOptimisticConflicts } from './optimistic-sync-utils';
 
+export const CLIENTE_UPSERT_COLUMNS = [
+    'tipo_documento',
+    'numero_documento',
+    'razon_social_nombres',
+    'estado_civil',
+    'domicilio',
+    'telefono',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+    'version',
+    'base_version',
+    'updated_by_user_id',
+    'updated_by_device_mac',
+];
+
+export const VEHICULO_UPSERT_COLUMNS = [
+    'chasis_vin',
+    'placa',
+    'motor',
+    'marca',
+    'modelo',
+    'color',
+    'carroceria',
+    'categoria',
+    'anio_fabricacion',
+    'anio_modelo',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+    'version',
+    'base_version',
+    'updated_by_user_id',
+    'updated_by_device_mac',
+];
+
+export const EMPRESA_GESTORA_UPSERT_COLUMNS = [
+    'ruc',
+    'razon_social',
+    'direccion',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
+export const PLANTILLA_DOCUMENTO_UPSERT_COLUMNS = [
+    'nombre_documento',
+    'contenido_html',
+    'orientacion_papel',
+    'activo',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
+export const PRESENTANTE_UPSERT_COLUMNS = [
+    'dni',
+    'nombres',
+    'primer_apellido',
+    'segundo_apellido',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
+export const REPRESENTANTE_LEGAL_UPSERT_COLUMNS = [
+    'empresa_gestora_id',
+    'dni',
+    'nombres',
+    'primer_apellido',
+    'segundo_apellido',
+    'partida_registral',
+    'oficina_registral',
+    'domicilio',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
+export const PERFIL_GESTOR_UPSERT_COLUMNS = [
+    'calidad',
+    'nombre',
+    'concesionario',
+    'importador',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
+export const MESSAGE_TEMPLATE_UPSERT_COLUMNS = [
+    'name',
+    'content',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
 /**
  * Adaptador concreto para resolver el mapeo de persistencia masiva de las 8 entidades Maestras.
  */
@@ -61,7 +158,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         );
         if (accepted.length === 0) return result;
         await manager.createQueryBuilder().insert().into(Cliente).values(accepted)
-            .orUpdate(['tipo_documento', 'numero_documento', 'razon_social_nombres', 'estado_civil', 'domicilio', 'telefono', 'updated_at', 'sync_status', 'version', 'base_version', 'updated_by_user_id', 'updated_by_device_mac'], ['id'])
+            .orUpdate(CLIENTE_UPSERT_COLUMNS, ['id'])
             .execute();
         return result;
     }
@@ -79,7 +176,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         );
         if (accepted.length === 0) return result;
         await manager.createQueryBuilder().insert().into(Vehiculo).values(accepted)
-            .orUpdate(['chasis_vin', 'placa', 'motor', 'marca', 'modelo', 'color', 'carroceria', 'categoria', 'anio_fabricacion', 'anio_modelo', 'updated_at', 'sync_status', 'version', 'base_version', 'updated_by_user_id', 'updated_by_device_mac'], ['id'])
+            .orUpdate(VEHICULO_UPSERT_COLUMNS, ['id'])
             .execute();
         return result;
     }
@@ -88,7 +185,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!empresas || empresas.length === 0) return;
         const manager = this.getManager(tx, this.defaultEmpresaRepo);
         await manager.createQueryBuilder().insert().into(EmpresaGestora).values(empresas)
-            .orUpdate(['ruc', 'razon_social', 'direccion', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(EMPRESA_GESTORA_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
@@ -96,7 +193,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!plantillas || plantillas.length === 0) return;
         const manager = this.getManager(tx, this.defaultPlantillaDocRepo);
         await manager.createQueryBuilder().insert().into(PlantillaDocumento).values(plantillas)
-            .orUpdate(['nombre_documento', 'contenido_html', 'orientacion_papel', 'activo', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(PLANTILLA_DOCUMENTO_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
@@ -104,7 +201,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!presentantes || presentantes.length === 0) return;
         const manager = this.getManager(tx, this.defaultPresentanteRepo);
         await manager.createQueryBuilder().insert().into(Presentante).values(presentantes)
-            .orUpdate(['dni', 'nombres', 'primer_apellido', 'segundo_apellido', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(PRESENTANTE_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
@@ -112,7 +209,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!representantes || representantes.length === 0) return;
         const manager = this.getManager(tx, this.defaultRepLegalRepo);
         await manager.createQueryBuilder().insert().into(RepresentanteLegal).values(representantes)
-            .orUpdate(['empresa_gestora_id', 'dni', 'nombres', 'primer_apellido', 'segundo_apellido', 'partida_registral', 'oficina_registral', 'domicilio', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(REPRESENTANTE_LEGAL_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
@@ -120,7 +217,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!perfiles || perfiles.length === 0) return;
         const manager = this.getManager(tx, this.defaultPerfilRepo);
         await manager.createQueryBuilder().insert().into(PerfilGestor).values(perfiles)
-            .orUpdate(['calidad', 'nombre', 'concesionario', 'importador', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(PERFIL_GESTOR_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
@@ -128,7 +225,7 @@ export class TypeOrmMaestrosSyncAdapter implements IMaestrosSyncRepository {
         if (!templates || templates.length === 0) return;
         const manager = this.getManager(tx, this.defaultMsgTemplateRepo);
         await manager.createQueryBuilder().insert().into(MessageTemplate).values(templates)
-            .orUpdate(['name', 'content', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(MESSAGE_TEMPLATE_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
