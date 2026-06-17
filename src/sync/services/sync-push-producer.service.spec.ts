@@ -55,7 +55,7 @@ describe('SyncPushProducerService', () => {
     await expect(service.enqueue('user-id', 'AA:BB', {
       syncProtocolVersion: 2,
       syncSessionId: outbox.syncSessionId,
-      entityName: 'cliente',
+      entityName: 'cliente' as any,
       chunkIndex: 0,
       totalChunks: 1,
       records: [{ id: '1' }],
@@ -73,31 +73,33 @@ describe('SyncPushProducerService', () => {
   });
 
   it('returns completed duplicate without enqueueing again', async () => {
-    outboxServiceMock.findByNaturalKey.mockResolvedValueOnce({ ...outbox, status: 'COMPLETED' });
-
-    await service.enqueue('user-id', 'AA:BB', {
+    const dto = {
       syncProtocolVersion: 2,
       syncSessionId: outbox.syncSessionId,
-      entityName: 'cliente',
+      entityName: 'cliente' as any,
       chunkIndex: 0,
       totalChunks: 1,
       records: [{ id: '1' }],
-    });
+    };
+    outboxServiceMock.findByNaturalKey.mockResolvedValueOnce({ ...outbox, status: 'COMPLETED', payloadHash: (service as any).hashPayload(dto) });
+
+    await service.enqueue('user-id', 'AA:BB', dto);
 
     expect(queueMock.add).not.toHaveBeenCalled();
   });
 
   it('returns completed-with-conflicts duplicate without enqueueing again', async () => {
-    outboxServiceMock.findByNaturalKey.mockResolvedValueOnce({ ...outbox, status: 'COMPLETED_WITH_CONFLICTS' });
-
-    await expect(service.enqueue('user-id', 'AA:BB', {
+    const dto = {
       syncProtocolVersion: 2,
       syncSessionId: outbox.syncSessionId,
-      entityName: 'cliente',
+      entityName: 'cliente' as any,
       chunkIndex: 0,
       totalChunks: 1,
       records: [{ id: '1' }],
-    })).resolves.toMatchObject({
+    };
+    outboxServiceMock.findByNaturalKey.mockResolvedValueOnce({ ...outbox, status: 'COMPLETED_WITH_CONFLICTS', payloadHash: (service as any).hashPayload(dto) });
+
+    await expect(service.enqueue('user-id', 'AA:BB', dto)).resolves.toMatchObject({
       accepted: true,
       status: 'COMPLETED_WITH_CONFLICTS',
     });
