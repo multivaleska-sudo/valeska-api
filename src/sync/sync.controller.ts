@@ -18,7 +18,7 @@ import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interfa
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PullSyncQueryDto } from './infrastructure/http/dtos/queries/pull-sync-query.dto';
 import { SyncStateQueryDto } from './infrastructure/http/dtos/queries/sync-state-query.dto';
-import { PushSyncChunkDto } from './infrastructure/http/dtos/common/base-chunk.dto';
+import { PushSyncChunkDto, PushSyncBatchDto } from './infrastructure/http/dtos/common/base-chunk.dto';
 import { SreTraceInterceptor } from './infrastructure/http/interceptors/sre-trace.interceptor';
 import { SyncService } from './sync.service';
 import { SyncPushProducerService } from './services/sync-push-producer.service';
@@ -66,6 +66,21 @@ export class SyncController {
 
     return this.syncPushProducer.enqueue(request.user.sub, macAddress, body);
   }
+
+  @Post('push/batch')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async pushBatch(
+    @Req() request: AuthenticatedRequest,
+    @Headers('x-device-mac') macAddress: string,
+    @Body() body: PushSyncBatchDto,
+  ) {
+    if (!macAddress) {
+      throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la sincronizacion.');
+    }
+
+    return this.syncPushProducer.enqueueBatch(request.user.sub, macAddress, body);
+  }
+
   @Get('state')
   async state(
     @Req() request: AuthenticatedRequest,
