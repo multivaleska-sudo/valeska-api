@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, ConflictException } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
 import { Queue } from 'bullmq';
 import { createHash } from 'crypto';
@@ -32,6 +32,9 @@ export class SyncPushProducerService {
           entityName: dto.entityName,
           chunkIndex: dto.chunkIndex,
         });
+        if (existing && existing.payloadHash !== this.hashPayload(dto)) {
+          throw new ConflictException('Outbox payloadHash no coincide. Intento de reusar chunkIndex con datos distintos en la misma sesion.');
+        }
 
         if (existing && ['COMPLETED', 'COMPLETED_WITH_CONFLICTS'].includes(existing.status)) {
           return {
