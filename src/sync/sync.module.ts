@@ -21,6 +21,7 @@ import { Dispositivo } from './entities/dispositivo.entity';
 import { Sucursal } from './entities/sucursal.entity';
 import { SyncConflicto } from './entities/sync-conflict.entity';
 import { SyncOutboxJob } from './entities/sync-outbox-job.entity';
+import { SyncChangeLog } from './entities/sync-change-log.entity';
 import { Tramite, TramiteDetalle } from '../tramites/entities/tramite.entity';
 import { CatalogoTipoTramite, CatalogoSituacion } from '../tramites/entities/catalogos.entity';
 import {
@@ -66,6 +67,7 @@ import { TypeOrmConflictosSyncAdapter } from './infrastructure/adapters/typeorm-
       Sucursal,
       SyncConflicto,
       SyncOutboxJob,
+      SyncChangeLog,
       Tramite,
       TramiteDetalle,
       CatalogoTipoTramite,

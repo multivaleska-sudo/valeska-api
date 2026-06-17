@@ -1,6 +1,6 @@
 import { EntityManager } from 'typeorm';
 import { Tramite, TramiteDetalle } from '../../../tramites/entities/tramite.entity';
-import type { SyncPushResult } from '../sync-push-result';
+import type { SyncPushResult, SyncWriteContext } from '../sync-push-result';
 
 export const TRAMITES_SYNC_REPOSITORY_TOKEN = Symbol('ITramitesSyncRepository');
 
@@ -13,14 +13,14 @@ export interface ITramitesSyncRepository {
      * @param tx El gestor transaccional de la base de datos (EntityManager o equivalente)
      * @param tramites Lote de entidades de tipo Trámite
      */
-    upsertTramites(tx: EntityManager, tramites: Partial<Tramite>[]): Promise<SyncPushResult>;
+    upsertTramites(tx: EntityManager, tramites: Partial<Tramite>[], context: SyncWriteContext): Promise<SyncPushResult>;
 
     /**
      * Realiza un UPSERT atómico por lotes de los detalles de trámites.
      * @param tx El gestor transaccional de la base de datos
      * @param detalles Lote de entidades de tipo TramiteDetalle
      */
-    upsertTramiteDetalles(tx: EntityManager, detalles: Partial<TramiteDetalle>[]): Promise<SyncPushResult>;
+    upsertTramiteDetalles(tx: EntityManager, detalles: Partial<TramiteDetalle>[], context: SyncWriteContext): Promise<SyncPushResult>;
 
     /**
      * Obtiene una página de Trámites modificados utilizando cursor compuesto.

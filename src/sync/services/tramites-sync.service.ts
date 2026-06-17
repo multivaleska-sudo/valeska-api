@@ -6,6 +6,7 @@ import {
 } from '../domain/ports/tramites-sync-repository.interface';
 import type { ITramitesSyncRepository } from '../domain/ports/tramites-sync-repository.interface';
 import type { SyncPushResult } from '../domain/sync-push-result';
+import type { SyncWriteContext } from '../domain/sync-push-result';
 import { mergeSyncPushResults } from '../domain/sync-push-result';
 
 @Injectable()
@@ -20,16 +21,17 @@ export class TramitesSyncService {
   async push(
     tx: EntityManager,
     payload: { tramites?: Partial<Tramite>[]; tramiteDetalles?: Partial<TramiteDetalle>[] },
+    context: SyncWriteContext,
   ): Promise<SyncPushResult> {
     const results: SyncPushResult[] = [];
     if (payload.tramites?.length) {
       this.logger.debug(`Procesando UPSERT de ${payload.tramites.length} tramites.`);
-      results.push(await this.tramitesSyncRepo.upsertTramites(tx, payload.tramites));
+      results.push(await this.tramitesSyncRepo.upsertTramites(tx, payload.tramites, context));
     }
 
     if (payload.tramiteDetalles?.length) {
       this.logger.debug(`Procesando UPSERT de ${payload.tramiteDetalles.length} detalles de tramites.`);
-      results.push(await this.tramitesSyncRepo.upsertTramiteDetalles(tx, payload.tramiteDetalles));
+      results.push(await this.tramitesSyncRepo.upsertTramiteDetalles(tx, payload.tramiteDetalles, context));
     }
 
     return mergeSyncPushResults(...results);

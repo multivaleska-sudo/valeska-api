@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SyncOutboxJob, SyncOutboxStatus } from '../entities/sync-outbox-job.entity';
+import type { SyncPushResult } from '../domain/sync-push-result';
 
 @Injectable()
 export class SyncOutboxService {
@@ -48,6 +49,9 @@ export class SyncOutboxService {
       status: 'PENDING',
       attempts: 0,
       conflictCount: 0,
+      acceptedRecordIds: [],
+      conflictedRecordIds: [],
+      conflictIds: [],
       queueJobId: null,
       lastError: null,
       queuedAt: null,
@@ -92,12 +96,15 @@ export class SyncOutboxService {
     );
   }
 
-  async markCompleted(id: string): Promise<void> {
+  async markCompleted(id: string, result?: SyncPushResult): Promise<void> {
     await this.outboxRepo.update(
       { id },
       {
         status: 'COMPLETED',
-        conflictCount: 0,
+        conflictCount: result?.conflictCount ?? 0,
+        acceptedRecordIds: result?.acceptedRecordIds ?? [],
+        conflictedRecordIds: [],
+        conflictIds: [],
         completedAt: new Date(),
         failedAt: null,
         lastError: null,
@@ -105,12 +112,15 @@ export class SyncOutboxService {
     );
   }
 
-  async markCompletedWithConflicts(id: string, conflictCount: number): Promise<void> {
+  async markCompletedWithConflicts(id: string, result: SyncPushResult): Promise<void> {
     await this.outboxRepo.update(
       { id },
       {
         status: 'COMPLETED_WITH_CONFLICTS',
-        conflictCount,
+        conflictCount: result.conflictCount,
+        acceptedRecordIds: result.acceptedRecordIds,
+        conflictedRecordIds: result.conflictedRecordIds,
+        conflictIds: result.conflictIds,
         completedAt: new Date(),
         failedAt: null,
         lastError: null,
@@ -140,6 +150,9 @@ export class SyncOutboxService {
       status: job.status,
       attempts: job.attempts,
       conflictCount: job.conflictCount,
+      acceptedRecordIds: job.acceptedRecordIds ?? [],
+      conflictedRecordIds: job.conflictedRecordIds ?? [],
+      conflictIds: job.conflictIds ?? [],
       queuedAt: job.queuedAt,
       processingStartedAt: job.processingStartedAt,
       completedAt: job.completedAt,

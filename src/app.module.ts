@@ -13,6 +13,7 @@ import { Dispositivo } from './sync/entities/dispositivo.entity';
 import { Sucursal } from './sync/entities/sucursal.entity';
 import { SyncConflicto } from './sync/entities/sync-conflict.entity';
 import { SyncOutboxJob } from './sync/entities/sync-outbox-job.entity';
+import { SyncChangeLog } from './sync/entities/sync-change-log.entity';
 import { Tramite, TramiteDetalle } from './tramites/entities/tramite.entity';
 import { CatalogoTipoTramite, CatalogoSituacion } from './tramites/entities/catalogos.entity';
 import {
@@ -46,6 +47,7 @@ import { DesktopUpdatesModule } from './desktop-updates/desktop-updates.module';
         Sucursal,
         SyncConflicto,
         SyncOutboxJob,
+        SyncChangeLog,
         Tramite,
         TramiteDetalle,
         CatalogoTipoTramite,

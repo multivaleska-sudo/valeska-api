@@ -42,6 +42,10 @@ export class SyncPushProducerService {
             entityName: existing.entityName,
             chunkIndex: existing.chunkIndex,
             status: existing.status,
+            conflictCount: existing.conflictCount,
+            acceptedRecordIds: existing.acceptedRecordIds ?? [],
+            conflictedRecordIds: existing.conflictedRecordIds ?? [],
+            conflictIds: existing.conflictIds ?? [],
           };
         }
 
@@ -82,6 +86,10 @@ export class SyncPushProducerService {
           entityName: queuedOutbox.entityName,
           chunkIndex: queuedOutbox.chunkIndex,
           status: queuedOutbox.status,
+          conflictCount: queuedOutbox.conflictCount,
+          acceptedRecordIds: queuedOutbox.acceptedRecordIds ?? [],
+          conflictedRecordIds: queuedOutbox.conflictedRecordIds ?? [],
+          conflictIds: queuedOutbox.conflictIds ?? [],
         };
       } finally {
         span.end();
@@ -112,6 +120,7 @@ export class SyncPushProducerService {
     return createHash('sha256')
       .update(JSON.stringify({
         syncSessionId: dto.syncSessionId,
+        syncProtocolVersion: dto.syncProtocolVersion,
         entityName: dto.entityName,
         chunkIndex: dto.chunkIndex,
         totalChunks: dto.totalChunks,

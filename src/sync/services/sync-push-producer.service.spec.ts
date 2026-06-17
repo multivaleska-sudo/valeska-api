@@ -53,6 +53,7 @@ describe('SyncPushProducerService', () => {
     outboxServiceMock.findByNaturalKey.mockResolvedValueOnce(null);
 
     await expect(service.enqueue('user-id', 'AA:BB', {
+      syncProtocolVersion: 2,
       syncSessionId: outbox.syncSessionId,
       entityName: 'cliente',
       chunkIndex: 0,
@@ -75,6 +76,7 @@ describe('SyncPushProducerService', () => {
     outboxServiceMock.findByNaturalKey.mockResolvedValueOnce({ ...outbox, status: 'COMPLETED' });
 
     await service.enqueue('user-id', 'AA:BB', {
+      syncProtocolVersion: 2,
       syncSessionId: outbox.syncSessionId,
       entityName: 'cliente',
       chunkIndex: 0,
@@ -89,6 +91,7 @@ describe('SyncPushProducerService', () => {
     outboxServiceMock.findByNaturalKey.mockResolvedValueOnce({ ...outbox, status: 'COMPLETED_WITH_CONFLICTS' });
 
     await expect(service.enqueue('user-id', 'AA:BB', {
+      syncProtocolVersion: 2,
       syncSessionId: outbox.syncSessionId,
       entityName: 'cliente',
       chunkIndex: 0,

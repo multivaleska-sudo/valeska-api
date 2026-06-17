@@ -6,6 +6,39 @@ import { Usuario } from '../../entities/usuario.entity';
 import { Dispositivo } from '../../entities/dispositivo.entity';
 import { Sucursal } from '../../entities/sucursal.entity';
 
+export const USUARIO_UPSERT_COLUMNS = [
+    'username',
+    'password_hash',
+    'rol',
+    'nombre_completo',
+    'esta_activo',
+    'dispositivo_id',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
+export const DISPOSITIVO_UPSERT_COLUMNS = [
+    'mac_address',
+    'nombre_equipo',
+    'autorizado',
+    'provision_id',
+    'sucursal_id',
+    'usuario_id',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
+export const SUCURSAL_UPSERT_COLUMNS = [
+    'nombre',
+    'codigo',
+    'direccion',
+    'updated_at',
+    'deleted_at',
+    'sync_status',
+];
+
 /**
  * RUTA: src/sync/infrastructure/adapters/typeorm-seguridad-sync.adapter.ts
  * Adaptador concreto para resolver el flujo de accesos, dispositivos de origen y sucursales.
@@ -45,7 +78,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
         if (!usuarios || usuarios.length === 0) return;
         const manager = this.getManager(tx, this.defaultUsuarioRepo);
         await manager.createQueryBuilder().insert().into(Usuario).values(usuarios)
-            .orUpdate(['username', 'password_hash', 'rol', 'nombre_completo', 'esta_activo', 'dispositivo_id', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(USUARIO_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
@@ -53,7 +86,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
         if (!dispositivos || dispositivos.length === 0) return;
         const manager = this.getManager(tx, this.defaultDispositivoRepo);
         await manager.createQueryBuilder().insert().into(Dispositivo).values(dispositivos)
-            .orUpdate(['mac_address', 'nombre_equipo', 'autorizado', 'provision_id', 'sucursal_id', 'usuario_id', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(DISPOSITIVO_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 
@@ -61,7 +94,7 @@ export class TypeOrmSeguridadSyncAdapter implements ISeguridadSyncRepository {
         if (!sucursales || sucursales.length === 0) return;
         const manager = this.getManager(tx, this.defaultSucursalRepo);
         await manager.createQueryBuilder().insert().into(Sucursal).values(sucursales)
-            .orUpdate(['nombre', 'codigo', 'direccion', 'updated_at', 'sync_status'], ['id'])
+            .orUpdate(SUCURSAL_UPSERT_COLUMNS, ['id'])
             .execute();
     }
 

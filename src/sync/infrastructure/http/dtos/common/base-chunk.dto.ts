@@ -6,14 +6,25 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUUID,
+  Max,
   Min,
 } from 'class-validator';
 import { SYNC_ENTITY_NAMES } from '../../../../domain/sync-entity-name';
 import type { SyncEntityName } from '../../../../domain/sync-entity-name';
 
 export class PushSyncChunkDto {
+  @IsInt({ message: 'syncProtocolVersion debe ser un numero entero' })
+  @Min(2, { message: 'syncProtocolVersion 2 es requerido para subir cambios sin perdida de datos' })
+  @Max(2, { message: 'syncProtocolVersion 2 es la version soportada actualmente' })
+  readonly syncProtocolVersion!: number;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'outboxId debe ser un UUID v4 valido cuando sea provisto internamente' })
+  readonly outboxId?: string;
+
   @IsUUID('4', { message: 'syncSessionId debe ser un UUID v4 de sesion valido' })
   readonly syncSessionId!: string;
 

@@ -63,6 +63,15 @@ export class SyncOutboxJob {
   @Column({ name: 'conflict_count', type: 'int', default: 0 })
   conflictCount!: number;
 
+  @Column({ name: 'accepted_record_ids', type: 'jsonb', default: () => "'[]'::jsonb" })
+  acceptedRecordIds!: string[];
+
+  @Column({ name: 'conflicted_record_ids', type: 'jsonb', default: () => "'[]'::jsonb" })
+  conflictedRecordIds!: string[];
+
+  @Column({ name: 'conflict_ids', type: 'jsonb', default: () => "'[]'::jsonb" })
+  conflictIds!: string[];
+
   @Column({ name: 'last_error', type: 'text', nullable: true })
   lastError!: string | null;
 

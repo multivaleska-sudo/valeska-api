@@ -52,6 +52,9 @@ describe('SyncPushProcessor', () => {
       success: true,
       processedRecords: 1,
       conflictCount: 0,
+      acceptedRecordIds: ['cliente-id'],
+      conflictedRecordIds: [],
+      conflictIds: [],
     });
 
     await processor.process({
@@ -61,7 +64,9 @@ describe('SyncPushProcessor', () => {
     } as never);
 
     expect(syncServiceMock.processPushChunkNow).toHaveBeenCalled();
-    expect(outboxServiceMock.markCompleted).toHaveBeenCalledWith('outbox-id');
+    expect(outboxServiceMock.markCompleted).toHaveBeenCalledWith('outbox-id', expect.objectContaining({
+      acceptedRecordIds: ['cliente-id'],
+    }));
   });
 
   it('marks job as completed with conflicts when optimistic conflicts are detected', async () => {
@@ -69,6 +74,9 @@ describe('SyncPushProcessor', () => {
       success: true,
       processedRecords: 1,
       conflictCount: 1,
+      acceptedRecordIds: [],
+      conflictedRecordIds: ['cliente-id'],
+      conflictIds: ['conflict-id'],
     });
 
     await processor.process({
@@ -77,7 +85,12 @@ describe('SyncPushProcessor', () => {
       opts: { attempts: 5 },
     } as never);
 
-    expect(outboxServiceMock.markCompletedWithConflicts).toHaveBeenCalledWith('outbox-id', 1);
+    expect(outboxServiceMock.markCompletedWithConflicts).toHaveBeenCalledWith('outbox-id', expect.objectContaining({
+      conflictCount: 1,
+      acceptedRecordIds: [],
+      conflictedRecordIds: ['cliente-id'],
+      conflictIds: ['conflict-id'],
+    }));
     expect(outboxServiceMock.markCompleted).not.toHaveBeenCalled();
     expect(observabilityMock.incrementSyncPushJob).toHaveBeenCalledWith('cliente', 'COMPLETED_WITH_CONFLICTS');
   });
