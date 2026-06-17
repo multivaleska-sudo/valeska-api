@@ -47,3 +47,13 @@ export class PushSyncChunkDto {
   @ArrayMaxSize(1000, { message: 'El tamano de chunk excede el limite de seguridad de 1,000 registros para evitar OOM' })
   readonly records!: Record<string, unknown>[];
 }
+
+import { ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class PushSyncBatchDto {
+  @IsArray({ message: 'chunks debe ser un arreglo' })
+  @ValidateNested({ each: true })
+  @Type(() => PushSyncChunkDto)
+  readonly chunks!: PushSyncChunkDto[];
+}
