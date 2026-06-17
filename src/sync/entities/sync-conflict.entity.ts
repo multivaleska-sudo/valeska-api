@@ -28,4 +28,22 @@ export class SyncConflicto {
 
     @Column({ name: 'fecha_conflicto', type: 'timestamp' })
     fechaConflicto!: Date;
+
+    @Column({ name: 'resolved_at', type: 'timestamp', nullable: true })
+    resolvedAt!: Date | null;
+
+    @Column({ name: 'resolved_by_user_id', type: 'uuid', nullable: true })
+    resolvedByUserId!: string | null;
+
+    @Column({ name: 'resolved_by_device_mac', type: 'varchar', nullable: true })
+    resolvedByDeviceMac!: string | null;
+
+    @Column({ name: 'resolution_strategy', type: 'varchar', nullable: true })
+    resolutionStrategy!: string | null;
+
+    @Column({ name: 'resolution_payload', type: 'jsonb', nullable: true })
+    resolutionPayload!: Record<string, any> | null;
+
+    @Column({ name: 'resolution_note', type: 'text', nullable: true })
+    resolutionNote!: string | null;
 }
