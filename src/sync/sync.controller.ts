@@ -17,6 +17,7 @@ import { Request } from 'express';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PullSyncQueryDto } from './infrastructure/http/dtos/queries/pull-sync-query.dto';
+import { SyncStateQueryDto } from './infrastructure/http/dtos/queries/sync-state-query.dto';
 import { PushSyncChunkDto } from './infrastructure/http/dtos/common/base-chunk.dto';
 import { SreTraceInterceptor } from './infrastructure/http/interceptors/sre-trace.interceptor';
 import { SyncService } from './sync.service';
@@ -64,6 +65,19 @@ export class SyncController {
     }
 
     return this.syncPushProducer.enqueue(request.user.sub, macAddress, body);
+  }
+  @Get('state')
+  async state(
+    @Req() request: AuthenticatedRequest,
+    @Headers('x-device-mac') macAddress: string,
+    @Query() query: SyncStateQueryDto,
+  ) {
+    if (!macAddress) {
+      throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la descarga de datos.');
+    }
+
+    const entities = query.entities.split(',').map(e => e.trim());
+    return this.syncService.getSyncState(request.user.sub, macAddress, entities);
   }
 
   @Get('pull')
