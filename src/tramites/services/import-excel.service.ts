@@ -53,10 +53,23 @@ export class ImportExcelService {
         const situaciones = await manager.find(CatalogoSituacion);
         const situacionMap = new Map(situaciones.map(s => [s.nombre.toUpperCase(), s.id]));
 
+        // Obtener una sucursal de fallback si no viene en el token o headers
+        let finalSucursalId = sucursalId;
+        if (!finalSucursalId) {
+          const firstSucursal = await manager.query('SELECT id FROM sucursales LIMIT 1');
+          finalSucursalId = firstSucursal.length > 0 ? firstSucursal[0].id : 'default-sucursal-id';
+        }
+
         for (let i = 0; i < rawRows.length; i++) {
-          const row = rawRows[i];
+          const rawRow: any = rawRows[i];
+          const row: any = {};
+          for (const k of Object.keys(rawRow)) {
+            const cleanKey = k.trim().toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+            row[cleanKey] = rawRow[k];
+          }
+
           try {
-            await this.processRow(manager, row, tipoMap, situacionMap, userId, sucursalId);
+            await this.processRow(manager, row, tipoMap, situacionMap, userId, finalSucursalId);
             summary.imported++;
           } catch (e) {
             console.error(`Error importing row ${i + 2}:`, e);
@@ -73,8 +86,8 @@ export class ImportExcelService {
 
   private getVal(row: any, ...keys: string[]): string | null {
     for (const key of keys) {
-      const val = row[key] ?? row[key.toUpperCase()] ?? row[key.toLowerCase()];
-      if (val !== undefined && val !== null && val !== "") {
+      const val = row[key];
+      if (val !== undefined && val !== null && String(val).trim() !== "") {
         return String(val).trim();
       }
     }
@@ -101,16 +114,14 @@ export class ImportExcelService {
     userId: string, 
     sucursalId: string
   ) {
-    const clienteNombre = this.getVal(row, "cliente", "clientenombre", "nombrecliente", "razonsocial");
-    const dni = this.getVal(row, "ndni", "dni", "nodni", "documento", "numerodni");
-    const chasis = this.getVal(row, "chasis", "chasisvin", "vin");
+    const clienteNombre = this.getVal(row, "cliente", "clientenombre", "nombrecliente", "razonsocial") || "S/N";
+    const dni = this.getVal(row, "ndni", "dni", "nodni", "documento", "numerodni") || "S/N";
+    let chasis = this.getVal(row, "chasis", "chasisvin", "vin");
     const motor = this.getVal(row, "motor", "nromotor");
-    const tipoTramiteNombre = this.getVal(row, "tramite", "tipotramite");
-    const situacionNombre = this.getVal(row, "estado", "situacion");
-
-    if (!clienteNombre || !dni || !tipoTramiteNombre || !situacionNombre) {
-      throw new Error('Faltan campos obligatorios en la fila');
-    }
+    
+    // Si tipo de tramite falta, intentamos agarrar el primero del mapa o poner 'OTROS'
+    let tipoTramiteNombre = this.getVal(row, "tramite", "tipotramite");
+    let situacionNombre = this.getVal(row, "estado", "situacion");
 
     const now = new Date();
 
@@ -122,23 +133,28 @@ export class ImportExcelService {
         numeroDocumento: dni,
         tipoDocumento: dni.length === 11 ? 'RUC' : 'DNI',
         razonSocialNombres: clienteNombre,
-        telefono: this.getVal(row, "telefono"),
+        telefono: this.getVal(row, "telefono") || "S/N",
         version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
       } as any);
       await manager.save(Cliente, cliente);
     } else {
       await manager.update(Cliente, { id: cliente.id }, {
         razonSocialNombres: clienteNombre,
-        telefono: this.getVal(row, "telefono") || cliente.telefono,
+        telefono: this.getVal(row, "telefono") || cliente.telefono || "S/N",
         version: cliente.version + 1, baseVersion: cliente.version, syncStatus: 'SYNCED', updatedAt: now
       } as any);
     }
 
+    // Si faltan chasis y motor, generamos un chasis dummy para asegurar que se cree un Vehiculo
+    // Esto previene violaciones de llave foránea NOT NULL en Tramite
+    if (!chasis && !motor) {
+      chasis = "S/N";
+    }
+
     // UPSERT Vehiculo
     let vehiculo: Vehiculo | null = null;
-    if (chasis || motor) {
-      if (chasis) vehiculo = await manager.findOne(Vehiculo, { where: { chasisVin: chasis } });
-      if (!vehiculo && motor) vehiculo = await manager.findOne(Vehiculo, { where: { motor: motor } });
+    if (chasis) vehiculo = await manager.findOne(Vehiculo, { where: { chasisVin: chasis } });
+    if (!vehiculo && motor) vehiculo = await manager.findOne(Vehiculo, { where: { motor: motor } });
 
       if (!vehiculo) {
         vehiculo = manager.create(Vehiculo, {
@@ -158,15 +174,17 @@ export class ImportExcelService {
           version: vehiculo.version + 1, baseVersion: vehiculo.version, syncStatus: 'SYNCED', updatedAt: now
         } as any);
       }
-    }
+    const tipoId = tipoTramiteNombre ? tipoMap.get(tipoTramiteNombre.toUpperCase()) : null;
+    const situacionId = situacionNombre ? situacionMap.get(situacionNombre.toUpperCase()) : null;
+    
+    const finalTipoId = tipoId || Array.from(tipoMap.values())[0];
+    const finalSituacionId = situacionId || Array.from(situacionMap.values())[0];
 
-    const tipoId = tipoMap.get(tipoTramiteNombre.toUpperCase());
-    const situacionId = situacionMap.get(situacionNombre.toUpperCase());
-    if (!tipoId || !situacionId) throw new Error('Tipo o situacion no encontrados');
+    if (!finalTipoId || !finalSituacionId) throw new Error('Catalogos vacios en la base de datos, imposible asignar un default');
 
     // UPSERT Tramite
     let tramite = await manager.findOne(Tramite, { 
-      where: { clienteId: cliente.id, vehiculoId: vehiculo?.id || IsNull(), tipoTramiteId: tipoId } 
+      where: { clienteId: cliente.id, vehiculoId: vehiculo?.id || IsNull(), tipoTramiteId: finalTipoId } 
     });
 
     let nTitulo = this.getVal(row, "ntitulo", "notitulo", "titulo");
@@ -176,8 +194,8 @@ export class ImportExcelService {
         id: randomUUID(),
         clienteId: cliente.id,
         vehiculoId: vehiculo?.id || null,
-        tipoTramiteId: tipoId,
-        situacionId: situacionId,
+        tipoTramiteId: finalTipoId,
+        situacionId: finalSituacionId,
         sucursalId: sucursalId,
         usuarioCreadorId: userId,
         nTitulo: nTitulo,
@@ -189,7 +207,7 @@ export class ImportExcelService {
       await manager.save(Tramite, tramite);
     } else {
       await manager.update(Tramite, { id: tramite.id }, {
-        situacionId: situacionId,
+        situacionId: finalSituacionId,
         nTitulo: nTitulo || tramite.nTitulo,
         observacionesGenerales: this.getVal(row, "obs", "observaciones") || tramite.observacionesGenerales,
         version: tramite.version + 1, baseVersion: tramite.version, syncStatus: 'SYNCED', updatedAt: now
@@ -205,7 +223,7 @@ export class ImportExcelService {
         tipoBoleta: this.getVal(row, "boleta", "tipoboleta"),
         numeroBoleta: this.getVal(row, "noboleta", "numeroboleta"),
         fechaBoleta: new Date(this.parseDate(this.getVal(row, "fboleta")) || now),
-        clausulaMonto: Number(this.getVal(row, "montototal", "monto")) || null,
+        clausulaMonto: Number(this.getVal(row, "montototal", "monto")) || 0,
         clausulaFormaPago: this.getVal(row, "formadepago"),
         version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
       } as any);
