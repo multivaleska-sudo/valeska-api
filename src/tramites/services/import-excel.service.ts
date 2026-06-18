@@ -182,34 +182,40 @@ export class ImportExcelService {
     } as any);
     await manager.save(Tramite, tramite);
 
-    // INSERT EmpresaGestora (Independiente) si existe
+    // UPSERT EmpresaGestora (Unica por nombre) si existe
     let empresaId: string | null = null;
     const empresaNombre = this.getVal(row, "empresa", "empresagestora", "concesionario");
     if (empresaNombre) {
-      const empresa = manager.create(EmpresaGestora, {
-        id: randomUUID(),
-        ruc: "S/N",
-        razonSocial: empresaNombre,
-        direccion: "S/N",
-        syncStatus: 'SYNCED', createdAt: now, updatedAt: now
-      });
-      await manager.save(EmpresaGestora, empresa);
+      let empresa = await manager.findOne(EmpresaGestora, { where: { razonSocial: empresaNombre } });
+      if (!empresa) {
+        empresa = manager.create(EmpresaGestora, {
+          id: randomUUID(),
+          ruc: "S/N",
+          razonSocial: empresaNombre,
+          direccion: "S/N",
+          syncStatus: 'SYNCED', createdAt: now, updatedAt: now
+        });
+        await manager.save(EmpresaGestora, empresa);
+      }
       empresaId = empresa.id;
     }
 
-    // INSERT Presentante (Independiente) si existe
+    // UPSERT Presentante (Unico por nombre) si existe
     let presentanteId: string | null = null;
     const presentanteNombre = this.getVal(row, "presentante", "nombrepresentante", "gestor");
     if (presentanteNombre) {
-      const presentante = manager.create(Presentante, {
-        id: randomUUID(),
-        dni: "S/N",
-        nombres: presentanteNombre,
-        primerApellido: "S/N",
-        segundoApellido: "S/N",
-        syncStatus: 'SYNCED', createdAt: now, updatedAt: now
-      });
-      await manager.save(Presentante, presentante);
+      let presentante = await manager.findOne(Presentante, { where: { nombres: presentanteNombre } });
+      if (!presentante) {
+        presentante = manager.create(Presentante, {
+          id: randomUUID(),
+          dni: "S/N",
+          nombres: presentanteNombre,
+          primerApellido: "S/N",
+          segundoApellido: "S/N",
+          syncStatus: 'SYNCED', createdAt: now, updatedAt: now
+        });
+        await manager.save(Presentante, presentante);
+      }
       presentanteId = presentante.id;
     }
 
