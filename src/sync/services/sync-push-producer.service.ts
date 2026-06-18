@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, ConflictException } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
 import { Queue } from 'bullmq';
 import { createHash } from 'crypto';
@@ -8,9 +8,12 @@ import { ObservabilityService } from '../../observability/observability.service'
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { PushSyncChunkDto } from '../infrastructure/http/dtos/common/base-chunk.dto';
 import { SyncOutboxService } from './sync-outbox.service';
+import { PushSyncBatchDto } from '../infrastructure/http/dtos/common/base-chunk.dto';
 
 export interface SyncPushJobData {
-  outboxId: string;
+  outboxId?: string;
+  isBatch?: boolean;
+  outboxIds?: string[];
 }
 
 @Injectable()
@@ -32,6 +35,9 @@ export class SyncPushProducerService {
           entityName: dto.entityName,
           chunkIndex: dto.chunkIndex,
         });
+        if (existing && existing.payloadHash !== this.hashPayload(dto)) {
+          throw new ConflictException('Outbox payloadHash no coincide. Intento de reusar chunkIndex con datos distintos en la misma sesion.');
+        }
 
         if (existing && ['COMPLETED', 'COMPLETED_WITH_CONFLICTS'].includes(existing.status)) {
           return {
@@ -90,6 +96,83 @@ export class SyncPushProducerService {
           acceptedRecordIds: queuedOutbox.acceptedRecordIds ?? [],
           conflictedRecordIds: queuedOutbox.conflictedRecordIds ?? [],
           conflictIds: queuedOutbox.conflictIds ?? [],
+        };
+      } finally {
+        span.end();
+      }
+    });
+  }
+
+  async enqueueBatch(userId: string, macAddress: string, dto: PushSyncBatchDto) {
+    return this.tracer.startActiveSpan('sync.push.enqueueBatch', async (span) => {
+      try {
+        const outboxes: any[] = [];
+        for (const chunk of dto.chunks) {
+          const existing = await this.outboxService.findByNaturalKey({
+            syncSessionId: chunk.syncSessionId,
+            entityName: chunk.entityName,
+            chunkIndex: chunk.chunkIndex,
+          });
+
+          if (existing && existing.payloadHash !== this.hashPayload(chunk)) {
+            throw new ConflictException(`Outbox payloadHash no coincide para ${chunk.entityName}. Intento de reusar chunkIndex.`);
+          }
+
+          if (existing && ['COMPLETED', 'COMPLETED_WITH_CONFLICTS'].includes(existing.status)) {
+            outboxes.push(existing);
+            continue;
+          }
+
+          const outbox = existing ?? (await this.outboxService.createPending({
+            syncSessionId: chunk.syncSessionId,
+            entityName: chunk.entityName,
+            chunkIndex: chunk.chunkIndex,
+            totalChunks: chunk.totalChunks,
+            payloadHash: this.hashPayload(chunk),
+            payload: chunk.records,
+            userId,
+            macAddress,
+          }));
+          outboxes.push(outbox);
+        }
+
+        const pendingOutboxes = outboxes.filter(o => !['COMPLETED', 'COMPLETED_WITH_CONFLICTS'].includes(o.status));
+        
+        let queueJobId = '';
+        if (pendingOutboxes.length > 0) {
+          const queueJob = await this.syncPushQueue.add(
+            'process-sync-push-batch',
+            { isBatch: true, outboxIds: pendingOutboxes.map(o => o.id) },
+            {
+              jobId: pendingOutboxes[0].syncSessionId + '-batch',
+              attempts: 5,
+              backoff: { type: 'exponential', delay: 5000 },
+              removeOnComplete: { count: 1000 },
+              removeOnFail: false,
+            },
+          );
+          queueJobId = String(queueJob.id);
+
+          for (const outbox of pendingOutboxes) {
+            await this.outboxService.markQueued(outbox.id, queueJobId);
+            outbox.queueJobId = queueJobId;
+            outbox.status = 'QUEUED';
+          }
+        }
+
+        await this.refreshQueueMetrics();
+
+        return {
+          accepted: true,
+          isBatch: true,
+          outboxes: outboxes.map(o => ({
+            jobId: o.queueJobId,
+            outboxId: o.id,
+            syncSessionId: o.syncSessionId,
+            entityName: o.entityName,
+            status: o.status,
+            conflictCount: o.conflictCount,
+          })),
         };
       } finally {
         span.end();

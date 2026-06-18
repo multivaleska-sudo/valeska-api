@@ -63,6 +63,22 @@ export class SyncService {
     return this.processPushChunkNow(userId, macAddress, dto);
   }
 
+  async processPushChunkWithTx(manager: EntityManager, userId: string, macAddress: string, dto: PushSyncChunkDto) {
+    const entityName = dto.entityName.toLowerCase();
+    const records = dto.records.map((record) => ({
+      ...record,
+      syncStatus: 'SYNCED',
+      updatedByUserId: record.updatedByUserId ?? userId,
+      updatedByDeviceMac: record.updatedByDeviceMac ?? macAddress.trim().toLowerCase(),
+    }));
+    
+    return this.handlers[entityName].push(manager, records, {
+      userId,
+      deviceMac: macAddress.trim().toLowerCase(),
+      outboxId: dto.outboxId ?? null,
+    });
+  }
+
   async processPushChunkNow(userId: string, macAddress: string, dto: PushSyncChunkDto) {
     await this.validateOperatorDevice(userId, macAddress);
 
@@ -134,6 +150,67 @@ export class SyncService {
         : null,
       hasMore: records.length === limit,
       timestamp: new Date().toISOString(),
+    };
+  }
+  private getTableInfo(entityName: SyncEntityName): { table: string, col: string } | null {
+    switch (entityName) {
+      case 'tramite': return { table: 'tramites', col: 'updated_at' };
+      case 'tramite_detalle': return { table: 'tramite_detalles', col: 'updated_at' };
+      case 'catalogo_tipo_tramite': return { table: 'catalogo_tipos_tramite', col: 'updated_at' };
+      case 'catalogo_situacion': return { table: 'catalogo_situaciones', col: 'updated_at' };
+      case 'cliente': return { table: 'clientes', col: 'updated_at' };
+      case 'vehiculo': return { table: 'vehiculos', col: 'updated_at' };
+      case 'empresa_gestora': return { table: 'empresas_gestoras', col: 'updated_at' };
+      case 'plantilla_documento': return { table: 'plantillas_documentos', col: 'updated_at' };
+      case 'presentante': return { table: 'presentantes', col: 'updated_at' };
+      case 'representante_legal': return { table: 'representantes_legales', col: 'updated_at' };
+      case 'perfil_gestor': return { table: 'perfiles_gestor', col: 'updated_at' };
+      case 'message_template': return { table: 'message_templates', col: 'updated_at' };
+      case 'dispositivo': return { table: 'dispositivos', col: 'updated_at' };
+      case 'sucursal': return { table: 'sucursales', col: 'updated_at' };
+      case 'usuario': return { table: 'usuarios', col: 'updated_at' };
+      case 'sync_conflicto': return { table: 'sync_conflictos', col: 'fecha_conflicto' };
+      default: return null;
+    }
+  }
+
+  async getSyncState(userId: string, macAddress: string, entities: string[]) {
+    await this.validateOperatorDevice(userId, macAddress);
+
+    const validEntities = entities.filter(isSyncEntityName);
+    const result: any[] = [];
+
+    for (const entityName of validEntities) {
+      const info = this.getTableInfo(entityName);
+      if (!info) continue;
+
+      const rows = await this.dataSource.query(`
+        SELECT ${info.col} as timestamp, id 
+        FROM ${info.table} 
+        ORDER BY ${info.col} DESC, id DESC 
+        LIMIT 1
+      `);
+
+      if (rows && rows.length > 0) {
+        result.push({
+          entityName,
+          maxTimestamp: rows[0].timestamp,
+          lastIdAtMaxTimestamp: rows[0].id,
+          approxCountSinceCursor: 0,
+        });
+      } else {
+        result.push({
+          entityName,
+          maxTimestamp: new Date(0).toISOString(),
+          lastIdAtMaxTimestamp: null,
+          approxCountSinceCursor: 0,
+        });
+      }
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      entities: result,
     };
   }
 

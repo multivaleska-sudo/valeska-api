@@ -50,9 +50,8 @@ import { TypeOrmMaestrosSyncAdapter } from './infrastructure/adapters/typeorm-ma
 import { CONFLICTOS_SYNC_REPOSITORY_TOKEN } from './domain/ports/conflictos-sync-repository.interface';
 import { TypeOrmConflictosSyncAdapter } from './infrastructure/adapters/typeorm-conflictos-sync.adapter';
 
-/**
- * Módulo de Sincronización que unifica y provee inyección de dependencias desacoplada.
- */
+import { SyncConflictResolutionService } from './services/sync-conflict-resolution.service';
+
 @Module({
   imports: [
     AuthModule,
@@ -94,6 +93,7 @@ import { TypeOrmConflictosSyncAdapter } from './infrastructure/adapters/typeorm-
     SyncPushProducerService,
     SyncHealthService,
     SyncPushProcessor,
+    SyncConflictResolutionService,
     {
       provide: SEGURIDAD_SYNC_REPOSITORY_TOKEN,
       useClass: TypeOrmSeguridadSyncAdapter,

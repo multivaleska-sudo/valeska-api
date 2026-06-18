@@ -13,6 +13,7 @@ describe('splitOptimisticConflicts', () => {
       createQueryBuilder: jest.fn(() => queryBuilderMock),
     })),
     insert: insertMock,
+    save: jest.fn(),
   };
 
   beforeEach(() => {
@@ -20,14 +21,16 @@ describe('splitOptimisticConflicts', () => {
   });
 
   it('creates a conflict and rejects an unsafe existing record with baseVersion zero', async () => {
-    queryBuilderMock.getMany.mockResolvedValueOnce([
+    queryBuilderMock.getMany
+      .mockResolvedValueOnce([
       {
         id: 'cliente-id',
         version: 3,
         updatedByDeviceMac: 'AA:BB',
         numeroDocumento: '12345678',
       },
-    ]);
+    ])
+    .mockResolvedValueOnce([]);
 
     const result = await splitOptimisticConflicts(
       managerMock as never,
@@ -41,7 +44,7 @@ describe('splitOptimisticConflicts', () => {
           updatedByDeviceMac: 'CC:DD',
         },
       ],
-      (record) => String(record.id),
+      (record: any) => String(record.id),
     );
 
     expect(result.accepted).toEqual([]);
@@ -52,7 +55,7 @@ describe('splitOptimisticConflicts', () => {
     });
     expect(result.result.conflictIds).toHaveLength(1);
     expect(queryBuilderMock.setLock).toHaveBeenCalledWith('pessimistic_write');
-    expect(insertMock).toHaveBeenCalledWith(
+    expect(managerMock.save).toHaveBeenCalledWith(
       expect.any(Function),
       expect.arrayContaining([
         expect.objectContaining({
@@ -66,13 +69,15 @@ describe('splitOptimisticConflicts', () => {
   });
 
   it('accepts a record whose baseVersion matches the locked server version', async () => {
-    queryBuilderMock.getMany.mockResolvedValueOnce([
+    queryBuilderMock.getMany
+      .mockResolvedValueOnce([
       {
         id: 'tramite-id',
         version: 2,
         updatedByDeviceMac: 'AA:BB',
       },
-    ]);
+    ])
+    .mockResolvedValueOnce([]);
 
     const result = await splitOptimisticConflicts(
       managerMock as never,
@@ -86,7 +91,7 @@ describe('splitOptimisticConflicts', () => {
           updatedByDeviceMac: 'CC:DD',
         },
       ],
-      (record) => String(record.id),
+      (record: any) => String(record.id),
     );
 
     expect(result.accepted).toEqual([
