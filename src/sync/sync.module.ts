@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { QueueModule } from '../queue/queue.module';
+import { TramitesModule } from '../tramites/tramites.module';
 import { SYNC_PUSH_QUEUE } from '../queue/queue.constants';
 import { SyncService } from './sync.service';
 import { SyncController } from './sync.controller';
@@ -57,6 +58,7 @@ import { SyncConflictResolutionService } from './services/sync-conflict-resoluti
     AuthModule,
     ObservabilityModule,
     QueueModule,
+    TramitesModule,
     BullModule.registerQueue({
       name: SYNC_PUSH_QUEUE,
     }),

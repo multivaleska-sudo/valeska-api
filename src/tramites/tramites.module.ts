@@ -6,9 +6,13 @@ import { CatalogoTipoTramite, CatalogoSituacion } from './entities/catalogos.ent
 import { Tramite, TramiteDetalle } from './entities/tramite.entity';
 import { MessageTemplate } from './entities/plantillas.entity';
 import { PerfilGestor } from './entities/perfil-gestor.entity';
+import { ImportExcelService } from './services/import-excel.service';
+import { ImportController } from './controllers/import.controller';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
     imports: [
+        AuthModule,
         TypeOrmModule.forFeature([
             Cliente,
             Vehiculo,
@@ -24,6 +28,8 @@ import { PerfilGestor } from './entities/perfil-gestor.entity';
             PerfilGestor
         ])
     ],
-    exports: [TypeOrmModule],
+    controllers: [ImportController],
+    providers: [ImportExcelService],
+    exports: [TypeOrmModule, ImportExcelService],
 })
 export class TramitesModule { }

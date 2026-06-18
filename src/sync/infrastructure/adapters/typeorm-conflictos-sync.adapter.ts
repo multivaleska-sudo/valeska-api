@@ -22,24 +22,7 @@ export class TypeOrmConflictosSyncAdapter implements IConflictosSyncRepository {
         if (!conflictos || conflictos.length === 0) return;
         const manager = this.getManager(tx);
 
-        await manager
-            .createQueryBuilder()
-            .insert()
-            .into(SyncConflicto)
-            .values(conflictos)
-            .orUpdate(
-                [
-                    'tabla_afectada',
-                    'registro_id',
-                    'identificador_visual',
-                    'datos_locales',
-                    'datos_remotos',
-                    'resuelto',
-                    'fecha_conflicto',
-                ],
-                ['id'],
-            )
-            .execute();
+        await manager.save(SyncConflicto, conflictos);
     }
 
     async fetchConflictosCursor(cursorDate: Date, lastId: string | undefined, limit: number): Promise<SyncConflicto[]> {

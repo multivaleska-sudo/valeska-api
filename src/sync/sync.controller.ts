@@ -20,6 +20,7 @@ import { PullSyncQueryDto } from './infrastructure/http/dtos/queries/pull-sync-q
 import { SyncStateQueryDto } from './infrastructure/http/dtos/queries/sync-state-query.dto';
 import { PushSyncChunkDto, PushSyncBatchDto } from './infrastructure/http/dtos/common/base-chunk.dto';
 import { SreTraceInterceptor } from './infrastructure/http/interceptors/sre-trace.interceptor';
+import { ImportExcelService } from '../tramites/services/import-excel.service';
 import { SyncService } from './sync.service';
 import { SyncPushProducerService } from './services/sync-push-producer.service';
 import { SyncHealthService } from './services/sync-health.service';
@@ -38,6 +39,7 @@ export class SyncController {
     private readonly syncPushProducer: SyncPushProducerService,
     private readonly syncHealthService: SyncHealthService,
     private readonly conflictResolution: SyncConflictResolutionService,
+    private readonly importExcelService: ImportExcelService,
   ) { }
 
   @Post('conflicts/:conflictId/resolve')
@@ -63,7 +65,7 @@ export class SyncController {
     if (!macAddress) {
       throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la sincronizacion.');
     }
-
+    this.importExcelService.checkMaintenanceMode();
     return this.syncPushProducer.enqueue(request.user.sub, macAddress, body);
   }
 
@@ -77,7 +79,7 @@ export class SyncController {
     if (!macAddress) {
       throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la sincronizacion.');
     }
-
+    this.importExcelService.checkMaintenanceMode();
     return this.syncPushProducer.enqueueBatch(request.user.sub, macAddress, body);
   }
 
@@ -90,6 +92,7 @@ export class SyncController {
     if (!macAddress) {
       throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la descarga de datos.');
     }
+    this.importExcelService.checkMaintenanceMode();
 
     const entities = query.entities.split(',').map(e => e.trim());
     return this.syncService.getSyncState(request.user.sub, macAddress, entities);
@@ -104,6 +107,7 @@ export class SyncController {
     if (!macAddress) {
       throw new BadRequestException('Cabecera "x-device-mac" es mandatoria para autorizar la descarga de datos.');
     }
+    this.importExcelService.checkMaintenanceMode();
 
     return this.syncService.processPullSync(request.user.sub, macAddress, query);
   }
