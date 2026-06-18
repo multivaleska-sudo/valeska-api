@@ -5,7 +5,7 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, Dele
 export class Cliente {
     @PrimaryColumn('uuid') id!: string;
     @Column({ name: 'tipo_documento' }) tipoDocumento!: string;
-    @Column({ name: 'numero_documento', unique: true, nullable: true }) numeroDocumento!: string;
+    @Column({ name: 'numero_documento', nullable: true }) numeroDocumento!: string;
     @Column({ name: 'razon_social_nombres', nullable: true }) razonSocialNombres!: string;
     @Column({ name: 'estado_civil', nullable: true, default: 'SOLTERO(A)' }) estadoCivil!: string;
     @Column({ nullable: true }) domicilio!: string;
