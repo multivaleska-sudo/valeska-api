@@ -122,6 +122,27 @@ export class ImportExcelService {
     return null;
   }
 
+  private parsePresentanteName(raw: string): { nombres: string, primerApellido: string, segundoApellido: string } {
+    let clean = raw.replace(/S\/N/ig, '').trim();
+    clean = clean.replace(/\s+/g, ' ').trim();
+
+    if (!clean) {
+      return { nombres: 'S/N', primerApellido: 'S/N', segundoApellido: 'S/N' };
+    }
+
+    const parts = clean.split(' ');
+    if (parts.length === 1) {
+      return { nombres: parts[0], primerApellido: 'S/N', segundoApellido: 'S/N' };
+    } else if (parts.length === 2) {
+      return { nombres: parts[0], primerApellido: parts[1], segundoApellido: 'S/N' };
+    } else {
+      const segundoApellido = parts.pop()!;
+      const primerApellido = parts.pop()!;
+      const nombres = parts.join(' ');
+      return { nombres, primerApellido, segundoApellido };
+    }
+  }
+
   private async processRow(
     manager: EntityManager,
     row: any,
@@ -248,21 +269,27 @@ export class ImportExcelService {
 
     // UPSERT Presentante (Unico por nombre) si existe
     let presentanteId: string | null = null;
-    const presentanteNombre = this.getVal(row, "presentante", "nombrepresentante", "gestor");
-    if (presentanteNombre) {
-      let presentante = await manager.findOne(Presentante, { where: { nombres: presentanteNombre } });
-      if (!presentante) {
-        presentante = manager.create(Presentante, {
-          id: randomUUID(),
-          dni: "S/N",
-          nombres: presentanteNombre,
-          primerApellido: "S/N",
-          segundoApellido: "S/N",
-          syncStatus: 'SYNCED', createdAt: now, updatedAt: now
+    const presentanteNombreRaw = this.getVal(row, "presentante", "nombrepresentante", "gestor");
+    if (presentanteNombreRaw) {
+      const { nombres, primerApellido, segundoApellido } = this.parsePresentanteName(presentanteNombreRaw);
+      
+      if (nombres !== 'S/N' || primerApellido !== 'S/N' || segundoApellido !== 'S/N') {
+        let presentante = await manager.findOne(Presentante, { 
+          where: { nombres, primerApellido, segundoApellido } 
         });
-        await manager.save(Presentante, presentante);
+        if (!presentante) {
+          presentante = manager.create(Presentante, {
+            id: randomUUID(),
+            dni: "S/N",
+            nombres,
+            primerApellido,
+            segundoApellido,
+            syncStatus: 'SYNCED', createdAt: now, updatedAt: now
+          });
+          await manager.save(Presentante, presentante);
+        }
+        presentanteId = presentante.id;
       }
-      presentanteId = presentante.id;
     }
 
     // INSERT Tramite Detalle (Independiente)
