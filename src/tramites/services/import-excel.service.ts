@@ -86,7 +86,15 @@ export class ImportExcelService {
 
   private getVal(row: any, ...keys: string[]): string | null {
     for (const key of keys) {
-      const val = row[key];
+      // 1. Intentar con la llave tal cual
+      let val = row[key];
+      if (val !== undefined && val !== null && String(val).trim() !== "") {
+        return String(val).trim();
+      }
+
+      // 2. Intentar con la llave normalizada (minúsculas, sin tildes ni espacios)
+      const cleanKey = key.trim().toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+      val = row[cleanKey];
       if (val !== undefined && val !== null && String(val).trim() !== "") {
         return String(val).trim();
       }
@@ -158,8 +166,8 @@ export class ImportExcelService {
       marca: this.getVal(row, "marca"),
       modelo: this.getVal(row, "modelo"),
       color: this.getVal(row, "color"),
-      carroceria: this.getVal(row, "carroceria", "carrocería"),
-      anioFabricacion: this.getVal(row, "año", "ano"),
+      carroceria: this.getVal(row, "carroceria", "carrocería", "Carrocería"),
+      anioFabricacion: this.getVal(row, "ano1", "año1", "ano", "año"),
       version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
     } as any);
     await manager.save(Vehiculo, vehiculo);
@@ -181,11 +189,11 @@ export class ImportExcelService {
     const rawFechaPlaca = this.getVal(row, "recepcionenoficinagestoraplacaenoficina", "recepciónenoficinagestoraplacaenoficina", "recepcionplaca");
     const fechaPlaca = this.parseDate(rawFechaPlaca);
 
-    const rawEntregaTarjeta = this.getVal(row, "entregaalclientefinalentregotarjeta", "entregaalclientefinalentregótarjeta", "entregatarjeta");
+    const rawEntregaTarjeta = this.getVal(row, "entregaalclientefinalentregotarjeta", "entregaalclientefinalentregótarjeta", "entregatarjeta", "fenttarj");
     const fechaEntregaTarjeta = this.parseDate(rawEntregaTarjeta);
     const metodoEntregaTarjeta = this.getMetodo(rawEntregaTarjeta);
 
-    const rawEntregaPlaca = this.getVal(row, "entregaalclientefinalentregoplaca", "entregaalclientefinalentregóplaca", "entregaplaca");
+    const rawEntregaPlaca = this.getVal(row, "entregaalclientefinalentregoplaca", "entregaalclientefinalentregóplaca", "entregaplaca", "fentplaca");
     const fechaEntregaPlaca = this.parseDate(rawEntregaPlaca);
     const metodoEntregaPlaca = this.getMetodo(rawEntregaPlaca);
 
@@ -200,8 +208,8 @@ export class ImportExcelService {
       usuarioCreadorId: userId,
       nTitulo: nTitulo,
       observacionesGenerales: this.getVal(row, "obs", "observaciones", "correo", "correousuario", "usuario"),
-      fechaPresentacion: new Date(this.parseDate(this.getVal(row, "fpresentacion")) || now),
-      tramiteAnio: new Date().getFullYear().toString(),
+      fechaPresentacion: new Date(this.parseDate(this.getVal(row, "fpresentacion", "fechapresentacion")) || now),
+      tramiteAnio: this.getVal(row, "ano", "año") || new Date().getFullYear().toString(),
 
       tarjetaEnOficina: !!fechaTarjeta,
       fechaTarjetaEnOficina: fechaTarjeta,
@@ -266,8 +274,8 @@ export class ImportExcelService {
       dua: this.getVal(row, "dua"),
       numFormatoInmatriculacion: this.getVal(row, "forminmatriculacion", "formatoinmatriculacion", "forminmatriculación"),
       tipoBoleta: this.getVal(row, "boleta", "tipoboleta"),
-      numeroBoleta: this.getVal(row, "noboleta", "numeroboleta", "nºboleta", "n°boleta"),
-      fechaBoleta: new Date(this.parseDate(this.getVal(row, "fboleta")) || now),
+      numeroBoleta: this.getVal(row, "nboleta", "noboleta", "numeroboleta", "nºboleta", "n°boleta"),
+      fechaBoleta: new Date(this.parseDate(this.getVal(row, "fboleta", "fechaboleta")) || now),
       clausulaMonto: Number(this.getVal(row, "montototal", "monto")) || 0,
       clausulaFormaPago: this.getVal(row, "formadepago", "formapago"),
       clausulaPagoBancarizado: this.getVal(row, "pagobancarizadosegun", "pagobancarizado"),
