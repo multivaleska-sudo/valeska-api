@@ -16,8 +16,8 @@ export interface ImportSummary {
 
 const EXPECTED_HEADERS = [
   "N°", "Nº Titulo", "Año", "Cliente", "Teléfono", "Nº DNI", "Empresa", "Trámite", "Estado", "Obs",
-  "F_Presentación", "F_Ent_Tarj.", "F_Ent_Placa", "(vacía)", "Marca", "Chasis", "Color", "Modelo", "Motor", "Año",
-  "placa", "(vacía)", "Presentante", "Boleta", "F_Boleta", "DUA", "Form_Inmatriculación", "Nº Boleta", "Cod_Ver", "Monto total",
+  "F_Presentación", "F_Ent_Tarj.", "F_Ent_Placa", "", "Marca", "Chasis", "Color", "Modelo", "Motor", "Año",
+  "placa", "", "Presentante", "Boleta", "F_Boleta", "DUA", "Form_Inmatriculación", "Nº Boleta", "Cod_Ver", "Monto total",
   "Forma de Pago", "Pago Bancarizado Según", "Dice:", "Debería Decir", "Carrocería", "correo /usuario", "Recepción en Oficina (Gestora)-Tarjeta en Oficina", "Recepción en Oficina (Gestora)-Placa en Oficina", "Entrega al Cliente Final-Método Tarjeta", "Entrega al Cliente Final-Método Placa"
 ];
 
@@ -60,7 +60,8 @@ export class ImportExcelService {
       const actualHeaders = (rawRows[0] || []).map(h => h ? String(h).trim() : "");
       for (let i = 0; i < EXPECTED_HEADERS.length; i++) {
         if (actualHeaders[i] !== EXPECTED_HEADERS[i]) {
-          throw new BadRequestException(`Error en la columna ${i + 1} (Letra ${String.fromCharCode(65 + (i > 25 ? (i / 26) - 1 : 0))}${String.fromCharCode(65 + (i % 26))}). Se esperaba cabecera exacta "${EXPECTED_HEADERS[i]}" pero se encontró "${actualHeaders[i] || 'vacía o distinta'}". El formato es estricto.`);
+          const letter = i > 25 ? String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26)) : String.fromCharCode(65 + i);
+          throw new BadRequestException(`Error en la columna ${i + 1} (Letra ${letter}). Se esperaba cabecera exacta "${EXPECTED_HEADERS[i]}" pero se encontró "${actualHeaders[i] || 'nada'}". El formato es estricto.`);
         }
       }
       if (actualHeaders.length > EXPECTED_HEADERS.length) {
