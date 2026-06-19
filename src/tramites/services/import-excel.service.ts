@@ -96,14 +96,22 @@ export class ImportExcelService {
 
   private parseDate(val: string | null): string | null {
     if (!val) return null;
-    const parts = val.split(/[-/]/);
-    if (parts.length < 3) return null;
-    let d = parts[0];
-    let m = parts[1];
-    let y = parts[2];
-    if (d.length === 4) { y = parts[0]; m = parts[1]; d = parts[2]; }
+    const match = val.match(/(\d{1,4})[-/](\d{1,2})[-/](\d{1,4})/);
+    if (!match) return null;
+    let d = match[1];
+    let m = match[2];
+    let y = match[3];
+    if (d.length === 4) { y = match[1]; m = match[2]; d = match[3]; }
     if (y.length === 2) y = "20" + y;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+
+  private getMetodo(val: string | null): string | null {
+    if (!val) return null;
+    const upper = val.toUpperCase();
+    if (upper.includes("RECIBO")) return "Recibo";
+    if (upper.includes("DNI")) return "DNI";
+    return null;
   }
 
   private async processRow(
@@ -150,6 +158,7 @@ export class ImportExcelService {
       marca: this.getVal(row, "marca"),
       modelo: this.getVal(row, "modelo"),
       color: this.getVal(row, "color"),
+      carroceria: this.getVal(row, "carroceria", "carrocería"),
       anioFabricacion: this.getVal(row, "año", "ano"),
       version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
     } as any);
@@ -166,8 +175,23 @@ export class ImportExcelService {
     // INSERT Tramite (Independiente)
     let nTitulo = this.getVal(row, "ntitulo", "notitulo", "titulo");
 
+    const rawFechaTarjeta = this.getVal(row, "recepcionenoficinagestoratarjetaenoficina", "recepciónenoficinagestoratarjetaenoficina", "recepciontarjeta");
+    const fechaTarjeta = this.parseDate(rawFechaTarjeta);
+
+    const rawFechaPlaca = this.getVal(row, "recepcionenoficinagestoraplacaenoficina", "recepciónenoficinagestoraplacaenoficina", "recepcionplaca");
+    const fechaPlaca = this.parseDate(rawFechaPlaca);
+
+    const rawEntregaTarjeta = this.getVal(row, "entregaalclientefinalentregotarjeta", "entregaalclientefinalentregótarjeta", "entregatarjeta");
+    const fechaEntregaTarjeta = this.parseDate(rawEntregaTarjeta);
+    const metodoEntregaTarjeta = this.getMetodo(rawEntregaTarjeta);
+
+    const rawEntregaPlaca = this.getVal(row, "entregaalclientefinalentregoplaca", "entregaalclientefinalentregóplaca", "entregaplaca");
+    const fechaEntregaPlaca = this.parseDate(rawEntregaPlaca);
+    const metodoEntregaPlaca = this.getMetodo(rawEntregaPlaca);
+
     const tramite = manager.create(Tramite, {
       id: randomUUID(),
+      codigoVerificacion: this.getVal(row, "codver", "codigoverificacion"),
       clienteId: cliente.id,
       vehiculoId: vehiculo.id,
       tipoTramiteId: finalTipoId,
@@ -175,9 +199,23 @@ export class ImportExcelService {
       sucursalId: sucursalId,
       usuarioCreadorId: userId,
       nTitulo: nTitulo,
-      observacionesGenerales: this.getVal(row, "obs", "observaciones"),
+      observacionesGenerales: this.getVal(row, "obs", "observaciones", "correo", "correousuario", "usuario"),
       fechaPresentacion: new Date(this.parseDate(this.getVal(row, "fpresentacion")) || now),
       tramiteAnio: new Date().getFullYear().toString(),
+
+      tarjetaEnOficina: !!fechaTarjeta,
+      fechaTarjetaEnOficina: fechaTarjeta,
+      placaEnOficina: !!fechaPlaca,
+      fechaPlacaEnOficina: fechaPlaca,
+
+      entregoTarjeta: !!fechaEntregaTarjeta,
+      fechaEntregaTarjeta: fechaEntregaTarjeta,
+      metodoEntregaTarjeta: metodoEntregaTarjeta,
+
+      entregoPlaca: !!fechaEntregaPlaca,
+      fechaEntregaPlaca: fechaEntregaPlaca,
+      metodoEntregaPlaca: metodoEntregaPlaca,
+
       version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
     } as any);
     await manager.save(Tramite, tramite);
@@ -225,11 +263,16 @@ export class ImportExcelService {
       tramiteId: tramite.id,
       empresaGestoraId: empresaId,
       presentanteId: presentanteId,
+      dua: this.getVal(row, "dua"),
+      numFormatoInmatriculacion: this.getVal(row, "forminmatriculacion", "formatoinmatriculacion", "forminmatriculación"),
       tipoBoleta: this.getVal(row, "boleta", "tipoboleta"),
-      numeroBoleta: this.getVal(row, "noboleta", "numeroboleta"),
+      numeroBoleta: this.getVal(row, "noboleta", "numeroboleta", "nºboleta", "n°boleta"),
       fechaBoleta: new Date(this.parseDate(this.getVal(row, "fboleta")) || now),
       clausulaMonto: Number(this.getVal(row, "montototal", "monto")) || 0,
-      clausulaFormaPago: this.getVal(row, "formadepago"),
+      clausulaFormaPago: this.getVal(row, "formadepago", "formapago"),
+      clausulaPagoBancarizado: this.getVal(row, "pagobancarizadosegun", "pagobancarizado"),
+      aclaracionDice: this.getVal(row, "dice"),
+      aclaracionDebeDecir: this.getVal(row, "deberiadecir", "deberíadecir"),
       version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
     } as any);
     await manager.save(TramiteDetalle, detalle);
