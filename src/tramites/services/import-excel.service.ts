@@ -14,6 +14,14 @@ export interface ImportSummary {
   errors: number;
 }
 
+const EXPECTED_HEADERS = [
+  "N°", "Nº Titulo", "Año", "Cliente", "Teléfono", "Nº DNI", "Empresa", "Trámite", "Estado", "Obs",
+  "F_Presentación", "F_Ent_Tarj.", "F_Ent_Placa", "(vacía)", "Marca", "Chasis", "Color", "Modelo", "Motor", "Año",
+  "placa", "(vacía)", "Presentante", "Boleta", "F_Boleta", "DUA", "Form_Inmatriculación", "Nº Boleta", "Cod_Ver", "Monto total",
+  "Forma de Pago", "Pago Bancarizado Según", "Dice:", "Debería Decir", "Carrocería", "correo /usuario", "Recepción en Oficina (Gestora)-Tarjeta en Oficina", "Recepción en Oficina (Gestora)-Placa en Oficina", "Entrega al Cliente Final-Método Tarjeta", "Entrega al Cliente Final-Método Placa"
+];
+
+
 @Injectable()
 export class ImportExcelService {
   private isImporting = false;
@@ -42,7 +50,22 @@ export class ImportExcelService {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const rawRows = XLSX.utils.sheet_to_json<any>(sheet, { raw: false, defval: null });
+      const rawRows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: false, defval: null });
+
+      if (rawRows.length === 0) {
+        throw new BadRequestException('El archivo Excel está vacío.');
+      }
+
+      // Validación estricta de cabeceras
+      const actualHeaders = (rawRows[0] || []).map(h => h ? String(h).trim() : "");
+      for (let i = 0; i < EXPECTED_HEADERS.length; i++) {
+        if (actualHeaders[i] !== EXPECTED_HEADERS[i]) {
+          throw new BadRequestException(`Error en la columna ${i + 1} (Letra ${String.fromCharCode(65 + (i > 25 ? (i / 26) - 1 : 0))}${String.fromCharCode(65 + (i % 26))}). Se esperaba cabecera exacta "${EXPECTED_HEADERS[i]}" pero se encontró "${actualHeaders[i] || 'vacía o distinta'}". El formato es estricto.`);
+        }
+      }
+      if (actualHeaders.length > EXPECTED_HEADERS.length) {
+        throw new BadRequestException(`El Excel tiene más columnas de las permitidas (${EXPECTED_HEADERS.length}). Por favor, use la plantilla estandarizada.`);
+      }
 
       summary.totalRows = rawRows.length;
 
@@ -60,12 +83,12 @@ export class ImportExcelService {
           finalSucursalId = firstSucursal.length > 0 ? firstSucursal[0].id : 'default-sucursal-id';
         }
 
-        for (let i = 0; i < rawRows.length; i++) {
-          const rawRow: any = rawRows[i];
-          const row: any = {};
-          for (const k of Object.keys(rawRow)) {
-            const cleanKey = k.trim().toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
-            row[cleanKey] = rawRow[k];
+        // Los datos empiezan en la fila 2 (índice 1 en AOA)
+        for (let i = 1; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          // Ignorar filas completamente vacías
+          if (!row || row.length === 0 || row.every((c: any) => c === null || c === undefined || String(c).trim() === "")) {
+            continue;
           }
 
           try {
@@ -84,20 +107,11 @@ export class ImportExcelService {
     }
   }
 
-  private getVal(row: any, ...keys: string[]): string | null {
-    for (const key of keys) {
-      // 1. Intentar con la llave tal cual
-      let val = row[key];
-      if (val !== undefined && val !== null && String(val).trim() !== "") {
-        return String(val).trim();
-      }
-
-      // 2. Intentar con la llave normalizada (minúsculas, sin tildes ni espacios)
-      const cleanKey = key.trim().toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
-      val = row[cleanKey];
-      if (val !== undefined && val !== null && String(val).trim() !== "") {
-        return String(val).trim();
-      }
+  private getValAOA(row: any[], index: number): string | null {
+    if (!row || index < 0 || index >= row.length) return null;
+    const val = row[index];
+    if (val !== undefined && val !== null && String(val).trim() !== "") {
+      return String(val).trim();
     }
     return null;
   }
@@ -145,20 +159,52 @@ export class ImportExcelService {
 
   private async processRow(
     manager: EntityManager,
-    row: any,
+    row: any[],
     tipoMap: Map<string, string>,
     situacionMap: Map<string, string>,
     userId: string,
     sucursalId: string
   ) {
-    const clienteNombre = this.getVal(row, "cliente", "clientenombre", "nombrecliente", "razonsocial") || "S/N";
-    const dni = this.getVal(row, "ndni", "dni", "nodni", "documento", "numerodni") || "S/N";
-    let chasis = this.getVal(row, "chasis", "chasisvin", "vin");
-    const motor = this.getVal(row, "motor", "nromotor");
+    const nTitulo = this.getValAOA(row, 1); // B: Nº Titulo
+    const tramiteAnio = this.getValAOA(row, 2) || new Date().getFullYear().toString(); // C: Año
+    const clienteNombre = this.getValAOA(row, 3) || "S/N"; // D: Cliente
+    const telefono = this.getValAOA(row, 4) || "S/N"; // E: Teléfono
+    const dni = this.getValAOA(row, 5) || "S/N"; // F: Nº DNI
+    const empresaNombre = this.getValAOA(row, 6); // G: Empresa
+    const tipoTramiteNombre = this.getValAOA(row, 7); // H: Trámite
+    const situacionNombre = this.getValAOA(row, 8); // I: Estado
+    const obs = this.getValAOA(row, 9); // J: Obs
+    const rawFechaPresentacion = this.getValAOA(row, 10); // K: F_Presentación
+    const rawFechaTarjOficina = this.getValAOA(row, 11); // L: F_Ent_Tarj.
+    const rawFechaPlacaOficina = this.getValAOA(row, 12); // M: F_Ent_Placa
+    // N: (vacía) -> index 13
+    const marca = this.getValAOA(row, 14); // O: Marca
+    let chasis = this.getValAOA(row, 15); // P: Chasis
+    const color = this.getValAOA(row, 16); // Q: Color
+    const modelo = this.getValAOA(row, 17); // R: Modelo
+    const motor = this.getValAOA(row, 18); // S: Motor
+    const vehiculoAnio = this.getValAOA(row, 19); // T: Año (Vehículo)
+    const placa = this.getValAOA(row, 20); // U: placa
+    // V: (vacía) -> index 21
+    const presentanteNombreRaw = this.getValAOA(row, 22); // W: Presentante
+    const tipoBoleta = this.getValAOA(row, 23); // X: Boleta
+    const rawFechaBoleta = this.getValAOA(row, 24); // Y: F_Boleta
+    const dua = this.getValAOA(row, 25); // Z: DUA
+    const formInmatriculacion = this.getValAOA(row, 26); // AA: Form_Inmatriculación
+    const numeroBoleta = this.getValAOA(row, 27); // AB: Nº Boleta
+    const codVer = this.getValAOA(row, 28); // AC: Cod_Ver
+    const montoTotal = this.getValAOA(row, 29); // AD: Monto total
+    const formaPago = this.getValAOA(row, 30); // AE: Forma de Pago
+    const pagoBancarizado = this.getValAOA(row, 31); // AF: Pago Bancarizado Según
+    const aclaracionDice = this.getValAOA(row, 32); // AG: Dice:
+    const aclaracionDebeDecir = this.getValAOA(row, 33); // AH: Debería Decir
+    const carroceria = this.getValAOA(row, 34); // AI: Carrocería
+    // AJ: correo /usuario -> index 35 (Normalmente no se importa sobreescribiendo el creador actual, pero se lee)
+    const rawRecepTarjeta = this.getValAOA(row, 36); // AK: Recepción en Oficina (Gestora)-Tarjeta en Oficina
+    const rawRecepPlaca = this.getValAOA(row, 37); // AL: Recepción en Oficina (Gestora)-Placa en Oficina
+    const metodoEntregaTarjeta = this.getValAOA(row, 38); // AM: Entrega al Cliente Final-Método Tarjeta
+    const metodoEntregaPlaca = this.getValAOA(row, 39); // AN: Entrega al Cliente Final-Método Placa
 
-    // Si tipo de tramite falta, intentamos agarrar el primero del mapa o poner 'OTROS'
-    let tipoTramiteNombre = this.getVal(row, "tramite", "tipotramite");
-    let situacionNombre = this.getVal(row, "estado", "situacion");
 
     const now = new Date();
 
@@ -168,7 +214,7 @@ export class ImportExcelService {
       numeroDocumento: dni,
       tipoDocumento: dni.length === 11 ? 'RUC' : 'DNI',
       razonSocialNombres: clienteNombre,
-      telefono: this.getVal(row, "telefono") || "S/N",
+      telefono: telefono,
       version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
     } as any);
     await manager.save(Cliente, cliente);
@@ -183,12 +229,12 @@ export class ImportExcelService {
     const vehiculo = manager.create(Vehiculo, {
       id: randomUUID(),
       chasisVin: chasis, motor: motor,
-      placa: this.getVal(row, "placa", "nroplaca"),
-      marca: this.getVal(row, "marca"),
-      modelo: this.getVal(row, "modelo"),
-      color: this.getVal(row, "color"),
-      carroceria: this.getVal(row, "carroceria", "carrocería", "Carrocería"),
-      anioFabricacion: this.getVal(row, "ano1", "año1", "ano", "año"),
+      placa: placa,
+      marca: marca,
+      modelo: modelo,
+      color: color,
+      carroceria: carroceria,
+      anioFabricacion: vehiculoAnio,
       version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
     } as any);
     await manager.save(Vehiculo, vehiculo);
@@ -201,26 +247,14 @@ export class ImportExcelService {
 
     if (!finalTipoId || !finalSituacionId) throw new Error('Catalogos vacios en la base de datos, imposible asignar un default');
 
-    // INSERT Tramite (Independiente)
-    let nTitulo = this.getVal(row, "ntitulo", "notitulo", "titulo");
-
-    const rawFechaTarjeta = this.getVal(row, "recepcionenoficinagestoratarjetaenoficina", "recepciónenoficinagestoratarjetaenoficina", "recepciontarjeta");
-    const fechaTarjeta = this.parseDate(rawFechaTarjeta);
-
-    const rawFechaPlaca = this.getVal(row, "recepcionenoficinagestoraplacaenoficina", "recepciónenoficinagestoraplacaenoficina", "recepcionplaca");
-    const fechaPlaca = this.parseDate(rawFechaPlaca);
-
-    const rawEntregaTarjeta = this.getVal(row, "entregaalclientefinalentregotarjeta", "entregaalclientefinalentregótarjeta", "entregatarjeta", "fenttarj");
-    const fechaEntregaTarjeta = this.parseDate(rawEntregaTarjeta);
-    const metodoEntregaTarjeta = this.getMetodo(rawEntregaTarjeta);
-
-    const rawEntregaPlaca = this.getVal(row, "entregaalclientefinalentregoplaca", "entregaalclientefinalentregóplaca", "entregaplaca", "fentplaca");
-    const fechaEntregaPlaca = this.parseDate(rawEntregaPlaca);
-    const metodoEntregaPlaca = this.getMetodo(rawEntregaPlaca);
+    const fechaTarjeta = this.parseDate(rawFechaTarjOficina);
+    const fechaPlaca = this.parseDate(rawFechaPlacaOficina);
+    const fechaEntregaTarjeta = this.parseDate(rawRecepTarjeta);
+    const fechaEntregaPlaca = this.parseDate(rawRecepPlaca);
 
     const tramite = manager.create(Tramite, {
       id: randomUUID(),
-      codigoVerificacion: this.getVal(row, "codver", "codigoverificacion"),
+      codigoVerificacion: codVer,
       clienteId: cliente.id,
       vehiculoId: vehiculo.id,
       tipoTramiteId: finalTipoId,
@@ -228,9 +262,9 @@ export class ImportExcelService {
       sucursalId: sucursalId,
       usuarioCreadorId: userId,
       nTitulo: nTitulo,
-      observacionesGenerales: this.getVal(row, "obs", "observaciones", "correo", "correousuario", "usuario"),
-      fechaPresentacion: new Date(this.parseDate(this.getVal(row, "fpresentacion", "fechapresentacion")) || now),
-      tramiteAnio: this.getVal(row, "ano", "año") || new Date().getFullYear().toString(),
+      observacionesGenerales: obs,
+      fechaPresentacion: new Date(this.parseDate(rawFechaPresentacion) || now),
+      tramiteAnio: tramiteAnio,
 
       tarjetaEnOficina: !!fechaTarjeta,
       fechaTarjetaEnOficina: fechaTarjeta,
@@ -251,7 +285,6 @@ export class ImportExcelService {
 
     // UPSERT EmpresaGestora (Unica por nombre) si existe
     let empresaId: string | null = null;
-    const empresaNombre = this.getVal(row, "empresa", "empresagestora", "concesionario");
     if (empresaNombre) {
       let empresa = await manager.findOne(EmpresaGestora, { where: { razonSocial: empresaNombre } });
       if (!empresa) {
@@ -269,13 +302,12 @@ export class ImportExcelService {
 
     // UPSERT Presentante (Unico por nombre) si existe
     let presentanteId: string | null = null;
-    const presentanteNombreRaw = this.getVal(row, "presentante", "nombrepresentante", "gestor");
     if (presentanteNombreRaw) {
       const { nombres, primerApellido, segundoApellido } = this.parsePresentanteName(presentanteNombreRaw);
-      
+
       if (nombres !== 'S/N' || primerApellido !== 'S/N' || segundoApellido !== 'S/N') {
-        let presentante = await manager.findOne(Presentante, { 
-          where: { nombres, primerApellido, segundoApellido } 
+        let presentante = await manager.findOne(Presentante, {
+          where: { nombres, primerApellido, segundoApellido }
         });
         if (!presentante) {
           presentante = manager.create(Presentante, {
@@ -298,16 +330,16 @@ export class ImportExcelService {
       tramiteId: tramite.id,
       empresaGestoraId: empresaId,
       presentanteId: presentanteId,
-      dua: this.getVal(row, "dua"),
-      numFormatoInmatriculacion: this.getVal(row, "forminmatriculacion", "formatoinmatriculacion", "forminmatriculación"),
-      tipoBoleta: this.getVal(row, "boleta", "tipoboleta"),
-      numeroBoleta: this.getVal(row, "nboleta", "noboleta", "numeroboleta", "nºboleta", "n°boleta"),
-      fechaBoleta: new Date(this.parseDate(this.getVal(row, "fboleta", "fechaboleta")) || now),
-      clausulaMonto: Number(this.getVal(row, "montototal", "monto")) || 0,
-      clausulaFormaPago: this.getVal(row, "formadepago", "formapago"),
-      clausulaPagoBancarizado: this.getVal(row, "pagobancarizadosegun", "pagobancarizado"),
-      aclaracionDice: this.getVal(row, "dice"),
-      aclaracionDebeDecir: this.getVal(row, "deberiadecir", "deberíadecir"),
+      dua: dua,
+      numFormatoInmatriculacion: formInmatriculacion,
+      tipoBoleta: tipoBoleta,
+      numeroBoleta: numeroBoleta,
+      fechaBoleta: new Date(this.parseDate(rawFechaBoleta) || now),
+      clausulaMonto: Number(montoTotal) || 0,
+      clausulaFormaPago: formaPago,
+      clausulaPagoBancarizado: pagoBancarizado,
+      aclaracionDice: aclaracionDice,
+      aclaracionDebeDecir: aclaracionDebeDecir,
       version: 1, baseVersion: 0, syncStatus: 'SYNCED', createdAt: now, updatedAt: now
     } as any);
     await manager.save(TramiteDetalle, detalle);
