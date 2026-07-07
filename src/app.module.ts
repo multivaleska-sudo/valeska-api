@@ -27,6 +27,7 @@ import {
 import { PerfilGestor } from './tramites/entities/perfil-gestor.entity';
 import { MessageTemplate } from './tramites/entities/plantillas.entity';
 import { DesktopUpdatesModule } from './desktop-updates/desktop-updates.module';
+import { MobileModule } from './mobile/mobile.module';
 
 /**
  * Módulo raíz de la aplicación Valeska API.
@@ -68,6 +69,7 @@ import { DesktopUpdatesModule } from './desktop-updates/desktop-updates.module';
     SyncModule,
     TramitesModule,
     DesktopUpdatesModule,
+    MobileModule,
   ],
   controllers: [AppController],
   providers: [AppService],
