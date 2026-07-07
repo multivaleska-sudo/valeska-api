@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { ObservabilityService } from '../../observability/observability.service';
 import { SyncOutboxService } from '../services/sync-outbox.service';
 import { SyncService } from '../sync.service';
@@ -32,19 +34,28 @@ describe('SyncPushProcessor', () => {
     startSyncPushTimer: jest.fn(() => jest.fn()),
     incrementSyncPushJob: jest.fn(),
   };
+  const dataSourceMock = {
+    transaction: jest.fn(async (callback) => callback({})),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SyncPushProcessor,
         { provide: SyncOutboxService, useValue: outboxServiceMock },
         { provide: SyncService, useValue: syncServiceMock },
         { provide: ObservabilityService, useValue: observabilityMock },
+        { provide: DataSource, useValue: dataSourceMock },
       ],
     }).compile();
 
     processor = module.get(SyncPushProcessor);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('marks job as completed after processing', async () => {
