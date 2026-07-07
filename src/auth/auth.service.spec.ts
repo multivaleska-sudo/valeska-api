@@ -37,4 +37,31 @@ describe('AuthService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
+  it('returns both legacy access_token and mobile-compatible accessToken on login', async () => {
+    const response = await service.login({
+      id: 'user-id',
+      username: 'admin',
+      nombreCompleto: 'Admin',
+      rol: 'ADMIN',
+      estaActivo: true,
+      dispositivoId: null,
+      dispositivo: null,
+      dispositivos: [],
+      createdAt: new Date('2026-07-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+      deletedAt: null,
+      syncStatus: 'SYNCED',
+    });
+
+    expect(response).toMatchObject({
+      access_token: 'token',
+      accessToken: 'token',
+      user: {
+        id: 'user-id',
+        username: 'admin',
+        rol: 'ADMIN',
+      },
+    });
+  });
 });
