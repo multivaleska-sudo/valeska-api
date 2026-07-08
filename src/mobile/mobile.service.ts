@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Tramite } from '../tramites/entities/tramite.entity';
 import { MobileTramitesQueryDto } from './dto/mobile-tramites-query.dto';
 
@@ -21,16 +21,80 @@ type MobileTramiteRowRaw = {
 
 type MobileTramiteDetailRaw = Record<string, string | number | boolean | Date | null | undefined>;
 
+type MobileCursor = {
+  cursorTimestamp: string;
+  cursorId: string;
+};
+
 @Injectable()
 export class MobileTramitesService {
   constructor(private readonly dataSource: DataSource) {}
 
   async findAll(query: MobileTramitesQueryDto) {
-    const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const offset = (page - 1) * limit;
+    const search = query.searchBusquedaRapida?.trim();
     const repository = this.dataSource.getRepository(Tramite);
-    const queryBuilder = repository
+
+    if (query.page !== undefined) {
+      return this.findAllLegacy(repository, query.page, limit, search);
+    }
+
+    return this.findAllCursor(repository, query, limit, search);
+  }
+
+  private async findAllLegacy(
+    repository: Repository<Tramite>,
+    page: number,
+    limit: number,
+    search?: string,
+  ) {
+    const offset = (page - 1) * limit;
+    const queryBuilder = this.buildListDataQuery(repository);
+
+    this.applySearch(queryBuilder, search);
+
+    const rows = await queryBuilder
+      .orderBy('t.updated_at', 'DESC')
+      .addOrderBy('t.id', 'DESC')
+      .skip(offset)
+      .take(limit)
+      .getRawMany<MobileTramiteRowRaw>();
+    const total = await this.buildLegacyCountQuery(repository, search).getCount();
+
+    return {
+      data: this.mapListRows(rows),
+      total,
+    };
+  }
+
+  private async findAllCursor(
+    repository: Repository<Tramite>,
+    query: MobileTramitesQueryDto,
+    limit: number,
+    search?: string,
+  ) {
+    const queryBuilder = this.buildListDataQuery(repository);
+
+    this.applySearch(queryBuilder, search);
+    this.applyCursor(queryBuilder, query);
+
+    const rows = await queryBuilder
+      .orderBy('t.updated_at', 'DESC')
+      .addOrderBy('t.id', 'DESC')
+      .take(limit + 1)
+      .getRawMany<MobileTramiteRowRaw>();
+    const pageRows = rows.slice(0, limit);
+    const hasMore = rows.length > limit;
+
+    return {
+      data: this.mapListRows(pageRows),
+      has_more: hasMore,
+      next_cursor: hasMore ? this.buildNextCursor(pageRows.at(-1)) : null,
+    };
+  }
+
+  private buildListDataQuery(repository: Repository<Tramite>): SelectQueryBuilder<Tramite> {
+    return repository
       .createQueryBuilder('t')
       .select([
         't.id AS id',
@@ -47,57 +111,92 @@ export class MobileTramitesService {
         'u.nombre_completo AS creador',
         't.updated_at AS timestamp',
       ])
-      .leftJoin('clientes', 'c', 'c.id = t.cliente_id')
-      .leftJoin('vehiculos', 'v', 'v.id = t.vehiculo_id')
-      .leftJoin('catalogo_tipos_tramite', 'ctt', 'ctt.id = t.tipo_tramite_id')
-      .leftJoin('catalogo_situaciones', 'cs', 'cs.id = t.situacion_id')
-      .leftJoin('tramite_detalles', 'td', 'td.tramite_id = t.id AND td.deleted_at IS NULL')
-      .leftJoin('empresas_gestoras', 'eg', 'eg.id = td.empresa_gestora_id')
-      .leftJoin('usuarios', 'u', 'u.id = t.usuario_creador_id')
+      .leftJoin('clientes', 'c', 'c.id::text = t.cliente_id::text')
+      .leftJoin('vehiculos', 'v', 'v.id::text = t.vehiculo_id::text')
+      .leftJoin('catalogo_tipos_tramite', 'ctt', 'ctt.id::text = t.tipo_tramite_id::text')
+      .leftJoin('catalogo_situaciones', 'cs', 'cs.id::text = t.situacion_id::text')
+      .leftJoin('tramite_detalles', 'td', 'td.tramite_id::text = t.id::text AND td.deleted_at IS NULL')
+      .leftJoin('empresas_gestoras', 'eg', 'eg.id::text = td.empresa_gestora_id::text')
+      .leftJoin('usuarios', 'u', 'u.id::text = t.usuario_creador_id::text')
       .where('t.deleted_at IS NULL');
+  }
 
-    const search = query.searchBusquedaRapida?.trim();
+  private buildLegacyCountQuery(repository: Repository<Tramite>, search?: string): SelectQueryBuilder<Tramite> {
+    const queryBuilder = repository.createQueryBuilder('t').where('t.deleted_at IS NULL');
+
     if (search) {
-      const searchCondition = [
-        'c.razon_social_nombres ILIKE :search',
-        't.n_titulo ILIKE :search',
-        'c.numero_documento ILIKE :search',
-        'v.placa ILIKE :search',
-        'v.motor ILIKE :search',
-        'v.chasis_vin ILIKE :search',
-      ].join(' OR ');
-      queryBuilder.andWhere(`(${searchCondition})`, { search: `%${search}%` });
+      queryBuilder
+        .leftJoin('clientes', 'c', 'c.id::text = t.cliente_id::text')
+        .leftJoin('vehiculos', 'v', 'v.id::text = t.vehiculo_id::text');
+      this.applySearch(queryBuilder, search);
     }
 
-    const total = await queryBuilder.clone().getCount();
-    const rows = await queryBuilder
-      .orderBy('t.updated_at', 'DESC')
-      .addOrderBy('t.id', 'DESC')
-      .skip(offset)
-      .take(limit)
-      .getRawMany<MobileTramiteRowRaw>();
+    return queryBuilder;
+  }
+
+  private applySearch(queryBuilder: SelectQueryBuilder<Tramite>, search?: string): void {
+    if (!search) return;
+
+    const searchCondition = [
+      'c.razon_social_nombres ILIKE :search',
+      't.n_titulo ILIKE :search',
+      'c.numero_documento ILIKE :search',
+      'v.placa ILIKE :search',
+      'v.motor ILIKE :search',
+      'v.chasis_vin ILIKE :search',
+    ].join(' OR ');
+    queryBuilder.andWhere(`(${searchCondition})`, { search: `%${search}%` });
+  }
+
+  private applyCursor(queryBuilder: SelectQueryBuilder<Tramite>, query: MobileTramitesQueryDto): void {
+    if (!query.cursorTimestamp && !query.cursorId) return;
+
+    if (!query.cursorTimestamp || !query.cursorId) {
+      throw new BadRequestException('cursorTimestamp y cursorId deben enviarse juntos');
+    }
+
+    if (!this.isUuid(query.cursorId)) {
+      throw new BadRequestException('cursorId debe ser un UUID valido');
+    }
+
+    queryBuilder.andWhere('(t.updated_at < :cursorTimestamp OR (t.updated_at = :cursorTimestamp AND t.id < :cursorId))', {
+      cursorTimestamp: query.cursorTimestamp,
+      cursorId: query.cursorId,
+    });
+  }
+
+  private mapListRows(rows: MobileTramiteRowRaw[]) {
+    return rows.map((row) => ({
+      id: this.toStringValue(row.id),
+      n_titulo: this.toStringValue(row.n_titulo),
+      cliente: this.toStringValue(row.cliente),
+      dni: this.toStringValue(row.dni),
+      placa: this.toStringValue(row.placa),
+      tramite: this.toStringValue(row.tramite),
+      situacion: this.toStringValue(row.situacion),
+      fecha_presentacion: this.toDateString(row.fecha_presentacion),
+      empresa_gestiona: this.toStringValue(row.empresa_gestiona),
+      creador: this.toStringValue(row.creador),
+      motor: this.toStringValue(row.motor),
+      chasis_vin: this.toStringValue(row.chasis_vin),
+      timestamp: this.toEpochMillis(row.timestamp),
+    }));
+  }
+
+  private buildNextCursor(row: MobileTramiteRowRaw | undefined): MobileCursor | null {
+    if (!row?.id || !row.timestamp) return null;
 
     return {
-      data: rows.map((row) => ({
-        id: this.toStringValue(row.id),
-        n_titulo: this.toStringValue(row.n_titulo),
-        cliente: this.toStringValue(row.cliente),
-        dni: this.toStringValue(row.dni),
-        placa: this.toStringValue(row.placa),
-        tramite: this.toStringValue(row.tramite),
-        situacion: this.toStringValue(row.situacion),
-        fecha_presentacion: this.toDateString(row.fecha_presentacion),
-        empresa_gestiona: this.toStringValue(row.empresa_gestiona),
-        creador: this.toStringValue(row.creador),
-        motor: this.toStringValue(row.motor),
-        chasis_vin: this.toStringValue(row.chasis_vin),
-        timestamp: this.toEpochMillis(row.timestamp),
-      })),
-      total,
+      cursorTimestamp: this.toIsoTimestamp(row.timestamp),
+      cursorId: this.toStringValue(row.id),
     };
   }
 
   async findOne(id: string) {
+    if (!this.isUuid(id)) {
+      throw new BadRequestException('id debe ser un UUID valido');
+    }
+
     const repository = this.dataSource.getRepository(Tramite);
     const row = await repository
       .createQueryBuilder('t')
@@ -146,12 +245,12 @@ export class MobileTramitesService {
         'td.aclaracion_debe_decir AS aclaracion_debe_decir',
         'CURRENT_DATE AS fecha_impresion',
       ])
-      .leftJoin('clientes', 'c', 'c.id = t.cliente_id')
-      .leftJoin('vehiculos', 'v', 'v.id = t.vehiculo_id')
-      .leftJoin('catalogo_tipos_tramite', 'ctt', 'ctt.id = t.tipo_tramite_id')
-      .leftJoin('catalogo_situaciones', 'cs', 'cs.id = t.situacion_id')
-      .leftJoin('tramite_detalles', 'td', 'td.tramite_id = t.id AND td.deleted_at IS NULL')
-      .leftJoin('empresas_gestoras', 'eg', 'eg.id = td.empresa_gestora_id')
+      .leftJoin('clientes', 'c', 'c.id::text = t.cliente_id::text')
+      .leftJoin('vehiculos', 'v', 'v.id::text = t.vehiculo_id::text')
+      .leftJoin('catalogo_tipos_tramite', 'ctt', 'ctt.id::text = t.tipo_tramite_id::text')
+      .leftJoin('catalogo_situaciones', 'cs', 'cs.id::text = t.situacion_id::text')
+      .leftJoin('tramite_detalles', 'td', 'td.tramite_id::text = t.id::text AND td.deleted_at IS NULL')
+      .leftJoin('empresas_gestoras', 'eg', 'eg.id::text = td.empresa_gestora_id::text')
       .leftJoin('presentantes', 'p', 'p.id::text = td.presentante_id::text')
       .where('t.id = :id', { id })
       .getRawOne<MobileTramiteDetailRaw>();
@@ -225,5 +324,15 @@ export class MobileTramitesService {
     if (typeof value === 'number') return value;
     const timestamp = value instanceof Date ? value.getTime() : new Date(String(value)).getTime();
     return Number.isFinite(timestamp) ? timestamp : 0;
+  }
+
+  private toIsoTimestamp(value: unknown): string {
+    if (value instanceof Date) return value.toISOString();
+    const timestamp = new Date(String(value)).getTime();
+    return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : String(value);
+  }
+
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   }
 }

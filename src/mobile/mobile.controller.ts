@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SreTraceInterceptor } from '../sync/infrastructure/http/interceptors/sre-trace.interceptor';
 import { MobileTramitesQueryDto } from './dto/mobile-tramites-query.dto';
@@ -16,7 +16,7 @@ export class MobileTramitesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.mobileTramitesService.findOne(id);
   }
 }
